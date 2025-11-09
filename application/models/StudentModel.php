@@ -1579,15 +1579,17 @@ class StudentModel extends CI_Model
 	//Course Count Summary Per Semester
 	function CourseCount($sem, $sy)
 	{
-		$this->db->select("Course, Major, COUNT(*) as Counts");
-		$this->db->from('semesterstude');
-		$this->db->where('SY', $sy);
-		$this->db->where('Semester', $sem);
-		$this->db->where('Status', 'Enrolled');
-		$this->db->group_by(['Course']);
+		$courseExpr = "CASE WHEN NULLIF(TRIM(s.Course),'') IS NULL THEN 'Not Set' ELSE TRIM(s.Course) END";
 
-		$query = $this->db->get();
-		return $query->result();
+		return $this->db->select("$courseExpr AS Course, COUNT(DISTINCT s.StudentNumber) as Counts", false)
+			->from('semesterstude s')
+			->where('s.SY', $sy)
+			->where('s.Semester', $sem)
+			->where('s.Status', 'Enrolled')
+			->group_by($courseExpr, false)
+			->order_by('Course', 'ASC')
+			->get()
+			->result();
 	}
 
 
@@ -4166,24 +4168,28 @@ class StudentModel extends CI_Model
 	}
 	public function MajorCount($sem, $sy)
 	{
-		return $this->db->select("Major, COUNT(*) as Counts")
-			->from('semesterstude')
-			->where('SY', $sy)
-			->where('Semester', $sem)
-			->where('Status', 'Enrolled')
-			->group_by(['Major'])
+		$majorExpr = "CASE WHEN NULLIF(TRIM(s.Major),'') IS NULL THEN 'Not Set' ELSE TRIM(s.Major) END";
+
+		return $this->db->select("$majorExpr AS Major, COUNT(DISTINCT s.StudentNumber) as Counts", false)
+			->from('semesterstude s')
+			->where('s.SY', $sy)
+			->where('s.Semester', $sem)
+			->where('s.Status', 'Enrolled')
+			->group_by($majorExpr, false)
 			->order_by('Major', 'ASC')
 			->get()
 			->result();
 	}
 	public function YearLevelCount($sem, $sy)
 	{
-		return $this->db->select("YearLevel, COUNT(*) as Counts")
-			->from('semesterstude')
-			->where('SY', $sy)
-			->where('Semester', $sem)
-			->where('Status', 'Enrolled')
-			->group_by(['YearLevel'])
+		$levelExpr = "CASE WHEN NULLIF(TRIM(s.YearLevel),'') IS NULL THEN 'Not Set' ELSE TRIM(s.YearLevel) END";
+
+		return $this->db->select("$levelExpr AS YearLevel, COUNT(DISTINCT s.StudentNumber) as Counts", false)
+			->from('semesterstude s')
+			->where('s.SY', $sy)
+			->where('s.Semester', $sem)
+			->where('s.Status', 'Enrolled')
+			->group_by($levelExpr, false)
 			// keeps 1st..4th natural order; falls back to alphabetical
 			->order_by("FIELD(YearLevel,'1st','2nd','3rd','4th'), YearLevel", '', false)
 			->get()

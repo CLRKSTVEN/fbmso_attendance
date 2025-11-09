@@ -1,0 +1,200 @@
+<?php
+class StudentModel extends CI_Model
+{
+
+
+	public function getStudentByNumber($studentNumber)
+	{
+		$semester = $this->session->userdata('semester');
+		$sy = $this->session->userdata('sy');
+
+		$this->db->select('sp.StudentNumber, ss.Course, ss.Major, sp.FirstName, sp.LastName');
+		$this->db->from('studeprofile sp');
+		$this->db->join('semesterstude ss', 'sp.StudentNumber = ss.StudentNumber');
+		$this->db->where('sp.StudentNumber', $studentNumber);
+		$this->db->where('ss.Semester', $semester);
+		$this->db->where('ss.SY', $sy);
+		return $this->db->get()->row();
+	}
+
+
+
+	public function generate_student_number()
+	{
+		$currentYear = date('Y');
+		$prefix = $currentYear;
+
+		$this->db->select_max('StudentNumber');
+		$this->db->like('StudentNumber', $prefix . '-', 'after'); // match YYYY-
+		$query = $this->db->get('studeprofile');
+		$row = $query->row();
+
+		if ($row && $row->StudentNumber) {
+			// Split on dash to extract the numeric part
+			$parts = explode('-', $row->StudentNumber);
+			$lastNumber = isset($parts[1]) ? (int)$parts[1] : 0;
+			$newNumber = $lastNumber + 1;
+		} else {
+			$newNumber = 1;
+		}
+
+		return $prefix . '-' . str_pad($newNumber, 4, '0', STR_PAD_LEFT);
+	}
+
+	public function updateSignupStatus($studentNumber, $status)
+	{
+		$this->db->where('StudentNumber', $studentNumber);
+		$this->db->update('studentsignup', ['Status' => $status]);
+	}
+
+
+	public function getSubjectsWithGrades($course, $major, $studentNumber, $effectivity = null)
+	{
+		$this->db->select([
+			's.SubjectCode',
+			's.description',
+			's.lecunit',
+			's.labunit',
+			's.prereq',
+			's.YearLevel',
+			's.Semester',
+			's.Effectivity',
+			'g.Final AS FinalGrade'
+		]);
+		$this->db->from('subjects s');
+
+		// --- Robust join: match grade by SubjectCode for this student only ---
+		// Normalizes: trim + upper + removes spaces/dashes + unifies collation.
+		// NOTE: set the collation used below to one your server supports (utf8mb4_unicode_ci is safe on MySQL 5.7+).
+		$join = "
+        REPLACE(REPLACE(UPPER(CONVERT(s.SubjectCode USING utf8mb4)),'-',''),' ','')
+            COLLATE utf8mb4_unicode_ci
+        =
+        REPLACE(REPLACE(UPPER(CONVERT(g.SubjectCode USING utf8mb4)),'-',''),' ','')
+            COLLATE utf8mb4_unicode_ci
+        AND g.StudentNumber = " . $this->db->escape($studentNumber);
+
+		// The 'false' keeps CI from escaping our SQL expression
+		$this->db->join('grades_o g', $join, 'left', false);
+
+		// Subject list is still filtered by the selected Course/Major/Effectivity
+		$this->db->where('s.Course', $course);
+		if (!empty($major)) {
+			$this->db->where('s.Major', $major);
+		} else {
+			$this->db->where('(s.Major IS NULL OR s.Major = "")', null, false);
+		}
+		if (!empty($effectivity)) {
+			$this->db->where('s.Effectivity', $effectivity);
+		}
+
+		$this->db->order_by('s.YearLevel, s.Semester, s.SubjectCode');
+		return $this->db->get()->result();
+	}
+
+
+
+
+	public function get_students_by_year_level($yearLevel, $courseDesc, $major, $sy, $sem)
+	{
+		$this->db->select('s.StudentNumber, sp.FirstName, sp.MiddleName, sp.LastName, s.YearLevel, s.Section');
+		$this->db->from('semesterstude s');
+		$this->db->join('studeprofile sp', 'sp.StudentNumber = s.StudentNumber', 'left');
+		$this->db->where('s.YearLevel', $yearLevel);
+		$this->db->where('s.Course', $courseDesc);
+		$this->db->where('s.SY', $sy);
+		$this->db->where('s.Semester', $sem);
+
+		if (!empty($major)) {
+			$this->db->where('s.Major', $major);
+		}
+
+		$this->db->order_by('sp.LastName', 'ASC');
+		return $this->db->get()->result();
+	}
+
+
+
+	public function getEffectivityOptions()
+	{
+		$this->db->distinct();
+		$this->db->select('Effectivity');
+		$this->db->from('subjects');
+		$this->db->order_by('Effectivity', 'DESC');
+		return $this->db->get()->result();
+	}
+
+	public function getEffectivityOptionsByCourse($course)
+	{
+		$this->db->distinct();
+		$this->db->select('Effectivity');
+		$this->db->from('subjects');
+		$this->db->where('Course', $course);
+		$this->db->order_by('Effectivity', 'DESC');
+		return $this->db->get()->result();
+	}
+
+	public function getEffectivityOptionsByCourseMajor($course, $major)
+	{
+		$this->db->distinct();
+		$this->db->select('Effectivity');
+		$this->db->from('subjects');
+		$this->db->where('Course', $course);
+
+		// Add Major filter
+		if (!empty($major)) {
+			$this->db->where('Major', $major);
+		} else {
+			// Handle subjects with no major (nullable or empty string)
+			$this->db->where('(Major IS NULL OR Major = "")', null, false);
+		}
+
+		$this->db->order_by('Effectivity', 'DESC');
+		return $this->db->get()->result();
+	}
+
+
+
+
+	public function searchStudents()
+	{
+		// $this->db->select('*');
+		$this->db->select('StudentNumber, FirstName, MiddleName, LastName');
+		$this->db->from('studeprofile');
+		$this->db->order_by('LastName');
+		$query = $this->db->get();
+		return $query->result();
+	}
+
+	function getProfileAccounting($sem, $sy)
+	{
+		$this->db->select('sp.StudentNumber, sp.FirstName, sp.MiddleName, sp.LastName, sp.birthDate');
+		$this->db->from('studeprofile sp');
+		$this->db->join('semesterstude ss', 'sp.StudentNumber = ss.StudentNumber', 'inner');
+		$this->db->where('ss.Semester', $sem);
+		$this->db->where('ss.SY', $sy);
+		$this->db->order_by('sp.LastName', 'ASC');
+
+		$query = $this->db->get();
+		return $query->result();
+	}
+
+	public function isFlagged($id)
+	{
+		$this->db->where('StudentNumber', $id);
+		$this->db->where('Status', 'unsettled');
+		$query = $this->db->get('flagged_students');
+		return $query->num_rows() > 0;
+	}
+
+	public function getFlagDetails($id)
+	{
+		$this->db->where('StudentNumber', $id);
+		$this->db->where('Status', 'unsettled');
+		$query = $this->db->get('flagged_students');
+		return $query->row(); // return a single record
+	}
+
+
+	public function get_student_profile($student_number)
+	{
