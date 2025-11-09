@@ -3,7 +3,7 @@
 
 <?php include('includes/head.php'); ?>
 
-<body>
+<body class="masterlist-page">
 
     <!-- Begin page -->
     <div id="wrapper">
@@ -52,7 +52,7 @@
                                             <b>
                                                 <?php echo $course_description; ?>
                                                 <?php if (!empty($major)) : ?>
-                                                    — Major in <?php echo $major; ?>
+                                                    â€” Major in <?php echo $major; ?>
                                                 <?php endif; ?>
                                             </b>
                                             <br />
@@ -83,7 +83,7 @@
       if ($fullname === '' && !empty($row->StudentNumber)) $fullname = $row->StudentNumber;
 
       $studno = $row->StudentNumber ?? '';
-      $bdate  = !empty($row->birthDate) ? $row->birthDate : '—';
+      $bdate  = !empty($row->birthDate) ? $row->birthDate : 'â€”';
       $yl     = $row->yearLevel ?? '';
       $sec    = $row->section ?? '';
       $stat   = $row->signupStatus ?? '';
@@ -265,3 +265,4 @@
 </body>
 
 </html>
+

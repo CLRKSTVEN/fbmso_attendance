@@ -22,4 +22,5 @@
     <link href="<?= base_url(); ?>assets/libs/datatables/select.bootstrap4.min.css" rel="stylesheet" type="text/css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
     <link rel="stylesheet" href="<?= base_url('assets/css/custom-sidebar-icons.css'); ?>">
+    <link rel="stylesheet" href="<?= base_url('assets/css/masterlist-responsive.css'); ?>">
 </head>

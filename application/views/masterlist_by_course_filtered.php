@@ -3,7 +3,7 @@
 
 <?php include('includes/head.php'); ?>
 
-<body>
+<body class="masterlist-page">
 
     <!-- Begin page -->
     <div id="wrapper">
@@ -52,7 +52,7 @@
                                         <b>
                                             <?php echo $selectedCourse; ?>
                                             <?php if (!empty($selectedMajor)) : ?>
-                                                — Major in <?php echo $selectedMajor; ?>
+                                                â€” Major in <?php echo $selectedMajor; ?>
                                             <?php endif; ?>
 
                                         </b>
@@ -253,3 +253,4 @@
 </body>
 
 </html>
+

@@ -45,7 +45,7 @@
     }
 </style>
 
-<body>
+<body class="masterlist-page">
 
     <div id="wrapper">
         <?php include('includes/top-nav-bar.php'); ?>
@@ -248,9 +248,9 @@
                 if (!stud) return;
 
                 // Reset modal
-                $('#flagsModalTitle').text('Flag History — ' + stud);
+                $('#flagsModalTitle').text('Flag History â€” ' + stud);
                 $('#studentFlagsTable tbody').html(
-                    '<tr><td colspan="6" class="text-center text-muted py-4">Loading…</td></tr>'
+                    '<tr><td colspan="6" class="text-center text-muted py-4">Loadingâ€¦</td></tr>'
                 );
                 $('#studentFlagsModal').modal('show');
 
@@ -266,7 +266,7 @@
                                 + '<td>' + (it.office || '') + '</td>'
                                 + '<td>' + (it.reason || '') + '</td>'
                                 + '<td>' + (it.flaggedByName || '') + '</td>'
-                                + '<td>' + (it.settledDate || '—') + '</td>'
+                                + '<td>' + (it.settledDate || 'â€”') + '</td>'
                                 + '</tr>';
                         });
                     } else {
@@ -305,7 +305,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr><td colspan="6" class="text-center text-muted py-4">Loading…</td></tr>
+                  <tr><td colspan="6" class="text-center text-muted py-4">Loadingâ€¦</td></tr>
                 </tbody>
               </table>
             </div>
@@ -319,3 +319,5 @@
 
 </body>
 </html>
+
+

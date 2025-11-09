@@ -3,7 +3,7 @@
 
 <?php include('includes/head.php'); ?>
 
-<body>
+<body class="masterlist-page">
 
     <!-- Begin page -->
     <div id="wrapper">
@@ -68,7 +68,7 @@
       if ($fullname === '' && !empty($row->StudentNumber)) $fullname = $row->StudentNumber;
 
       $studno = $row->StudentNumber ?? '';
-      $bdate  = !empty($row->birthDate) ? $row->birthDate : '—';
+      $bdate  = !empty($row->birthDate) ? $row->birthDate : 'â€”';
       $yl     = $row->yearLevel ?? '';
       $sec    = $row->section ?? '';
       $stat   = $row->signupStatus ?? '';
@@ -190,3 +190,4 @@
 </body>
 
 </html>
+

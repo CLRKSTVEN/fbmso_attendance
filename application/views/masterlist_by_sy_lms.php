@@ -3,7 +3,7 @@
 
 <?php include('includes/head.php'); ?>
 
-<body>
+<body class="masterlist-page">
 
     <!-- Begin page -->
     <div id="wrapper">
@@ -246,3 +246,4 @@
 </body>
 
 </html>
+
