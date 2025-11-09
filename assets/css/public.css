@@ -1,0 +1,276 @@
+   :root {
+       --card-r: 12px;
+       --card-pad: 16px;
+       --fbm-black: #0e1116;
+       --fbm-black-2: #171c22;
+       --fbm-gold: #d4af37;
+       --bio-min: 90px;
+       --bio-max: 112px;
+   }
+
+   body,
+   .content-page,
+   .content {
+       background: linear-gradient(135deg, var(--fbm-black) 0%, var(--fbm-black-2) 45%, #2a2f36 60%, rgba(212, 175, 55, .85) 100%) !important;
+       background-attachment: fixed !important;
+   }
+
+   .content-page .content .container-fluid {
+       padding-bottom: 96px;
+   }
+
+   .page-title-box {
+       border: 0;
+       margin-bottom: 10px;
+   }
+
+   .page-title-box-white {
+       border-radius: 14px;
+       padding: 18px 22px;
+       box-shadow: 0 10px 24px rgba(0, 0, 0, .14);
+       display: flex;
+       align-items: center;
+       justify-content: space-between;
+       gap: 16px;
+   }
+
+   .page-title-box-white .page-title {
+       margin: 0;
+       color: #fff !important;
+       font-weight: 800;
+       letter-spacing: .2px;
+   }
+
+   .page-title-box-white .page-title small {
+       display: block;
+       margin-top: 2px;
+       color: #fff !important;
+       font-weight: 600;
+   }
+
+   .page-tag {
+       display: inline-flex;
+       align-items: center;
+       gap: 8px;
+       background: rgba(255, 255, 255, .12);
+       color: #fff;
+       border: 1px solid rgba(255, 255, 255, .25);
+       padding: 6px 12px;
+       border-radius: 999px;
+       font-weight: 800;
+       text-transform: uppercase;
+       letter-spacing: .4px;
+   }
+
+   hr.fbmso-hr {
+       border: 0;
+       height: 2px;
+       border-radius: 1px;
+       margin: 16px 0 24px;
+       background: linear-gradient(90deg, #000 0%, var(--fbm-gold) 100%) !important;
+   }
+
+   .people-grid {
+       display: grid !important;
+       grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+       gap: 24px;
+       justify-items: center;
+       grid-auto-flow: row !important;
+   }
+
+   .people-grid>.person-card {
+       width: 380px;
+       max-width: 95%;
+   }
+
+   .people-grid>.person-card:first-child {
+       grid-column: 1 / -1;
+       justify-self: center;
+       width: 420px;
+       max-width: 95%;
+   }
+
+   @media (max-width:520px) {
+       .people-grid {
+           grid-template-columns: 1fr;
+       }
+
+       .people-grid>.person-card,
+       .people-grid>.person-card:first-child {
+           width: 100%;
+           max-width: 100%;
+       }
+   }
+
+   .person-card {
+       position: relative;
+       border: 1px solid rgba(255, 255, 255, .5);
+       border-radius: var(--card-r);
+       background: #fff;
+       box-shadow: 0 6px 18px rgba(0, 0, 0, .20), 0 1px 0 rgba(255, 255, 255, .6) inset;
+       overflow: hidden;
+       transition: all .3s ease;
+       display: flex;
+       flex-direction: column;
+   }
+
+   .person-card:hover {
+       transform: translateY(-3px);
+       box-shadow: 0 16px 36px rgba(0, 0, 0, .28);
+       border-color: rgba(212, 175, 55, .9);
+   }
+
+   .person-avatar {
+       display: flex;
+       justify-content: center;
+       padding: var(--card-pad) var(--card-pad) 12px;
+   }
+
+   .thumb {
+       width: 90px;
+       height: 90px;
+       border-radius: 50%;
+       overflow: hidden;
+       background: linear-gradient(135deg, var(--fbm-gold) 0%, #ffd54d 100%);
+       padding: 3px;
+       box-shadow: 0 6px 16px rgba(0, 0, 0, .22);
+   }
+
+   .thumb img {
+       width: 100%;
+       height: 100%;
+       object-fit: cover;
+       border-radius: 50%;
+       border: 2px solid #fff;
+   }
+
+   .person-header {
+       text-align: center;
+       padding: 0 24px;
+   }
+
+   .name {
+       margin: 0;
+       font-weight: 800;
+       letter-spacing: .2px;
+       font-size: 1.04rem;
+       color: #111827;
+       line-height: 1.3;
+   }
+
+   .title {
+       margin: .3rem 0 0;
+       color: #5b6470;
+       font-weight: 700;
+       font-size: .72rem;
+       text-transform: uppercase;
+       letter-spacing: .4px;
+   }
+
+   .person-body {
+       padding: 12px 24px 0;
+       flex: 1;
+       overflow: hidden;
+   }
+
+   .bio {
+       font-size: .92rem;
+       line-height: 1.6;
+       color: #334155;
+       position: relative;
+       overflow-wrap: anywhere;
+       word-break: break-word;
+       min-height: var(--bio-min);
+       max-height: var(--bio-max);
+       overflow: hidden;
+       margin: 0 0 10px;
+   }
+
+   .bio:after {
+       content: "";
+       position: absolute;
+       left: 0;
+       right: 0;
+       bottom: 0;
+       height: 1.6em;
+       background: linear-gradient(to bottom, rgba(255, 255, 255, 0), #fff 85%);
+   }
+
+   .see-more {
+       display: block;
+       text-align: center;
+       font-size: .86rem;
+       font-weight: 800;
+       color: #0f172a;
+       text-decoration: underline;
+   }
+
+   .see-more:hover {
+       color: #000;
+   }
+
+   .modal-content {
+       border-radius: 8px;
+       overflow: hidden;
+   }
+
+   .modal-header.sheet {
+       background: #fff !important;
+       color: #0f172a !important;
+       border-bottom: 1px solid #eaeaea;
+   }
+
+   .modal-header.sheet .modal-title {
+       font-weight: 800;
+       letter-spacing: .02em;
+   }
+
+   .modal-body.vscroll {
+       max-height: 70vh;
+       overflow: auto;
+   }
+
+   .bio-full {
+       white-space: pre-wrap;
+       line-height: 1.65;
+       font-size: .98rem;
+       color: #111827;
+       padding: 0 24px;
+       overflow-wrap: anywhere;
+       word-break: break-word;
+   }
+
+   @media (max-width:576px) {
+       .page-title-box-white {
+           flex-direction: column;
+           align-items: flex-start;
+           padding: 14px 16px;
+           gap: 10px;
+       }
+
+       .page-title-box-white .page-title {
+           font-size: 16px;
+           line-height: 1.25;
+           margin: 0;
+           white-space: normal !important;
+           overflow: visible !important;
+           text-overflow: clip !important;
+           word-break: break-word;
+       }
+
+       .page-title-box-white .page-title small {
+           white-space: normal !important;
+       }
+
+       .page-title-right {
+           width: 100%;
+           display: flex;
+           gap: 8px;
+           flex-wrap: wrap;
+           justify-content: flex-start;
+       }
+
+       .page-tag {
+           padding: 6px 10px;
+       }
+   }

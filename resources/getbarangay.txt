@@ -1,0 +1,8 @@
+function get_brgy()
+	{
+		$this->db->select('Brgy');
+		$this->db->distinct();
+		$this->db->order_by('Brgy', 'ASC');
+		$query = $this->db->get('settings_address');
+		return $query->result();
+	}

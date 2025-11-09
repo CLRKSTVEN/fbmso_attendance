@@ -1,0 +1,18 @@
+Google reCAPTCHA
+softtechservices.net@gmail.com
+
+KNP
+Site Key: 6Le7NPUqAAAAAOLCscbYgcOzol0Znc4HczpAJlbd
+Secret Key: 6Le7NPUqAAAAAMOXivbT0qoVPFmnggTQ5jhtE_Wk
+
+
+DepEd DDO - artadybasty@gmail.com
+doors.depedddo-mis.com
+Site Key: 6LcmUvUqAAAAAJzyPGxPdDfINXmSzPtnPNPzNgSC
+Secret Key: 6LcmUvUqAAAAAGy7mskMY6GwtNaLfehWlm9zfC0h
+
+
+MPC SRMS - artadybasty@gmail.com
+mpc.srmsportal.com
+Site Key: 6Ldor_UqAAAAAOk3AIr33733tXhGZ-_7HAXDE9lp
+Secret Key: 6Ldor_UqAAAAAMd3D-NXPLYmgzoG89wvwAfzvTLF

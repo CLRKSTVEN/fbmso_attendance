@@ -1,0 +1,50 @@
+
+
+CREATE TABLE o_users LIKE users;
+INSERT INTO o_users SELECT * FROM users;
+
+CREATE TABLE o_srms_settings LIKE srms_settings;
+INSERT INTO o_srms_settings SELECT * FROM srms_settings;
+
+Add login_form_image to srms_settings
+
+
+
+
+
+
+
+
+
+
+
+Insert record but skip duplicate
+INSERT IGNORE INTO o_users
+SELECT * FROM users;
+
+
+Copy the username as the IDNumber
+UPDATE o_users
+SET IDNumber = username;
+
+
+
+
+UPDATE
+     semesterstude t1,
+     sections t2
+SET
+     t1.IDNumber = t2.IDNumber
+WHERE
+     t1.YearLevel = t2.YearLevel;
+
+
+INSERT INTO studeaccount (StudentNumber, Course, YearLevel, Status, FeesDesc, FeesAmount, SY, Section, settingsID)
+SELECT t1.StudentNumber, t1.Course, t1.YearLevel, 'Enrolled', t2.Description, t2.Amount, t1.SY, t1.Section, 1
+FROM semesterstude t1
+JOIN fees t2 ON t1.YearLevel = t2.YearLevel;
+
+
+
+
+

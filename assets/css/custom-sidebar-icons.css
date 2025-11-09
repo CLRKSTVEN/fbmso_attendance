@@ -1,0 +1,70 @@
+/* === Pro sidebar icon system === */
+#side-menu i.menu-icon {
+    font-size: 1.15rem;
+    width: 1.85rem;
+    min-width: 1.85rem;
+    line-height: 1.15rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: .6rem;
+    transition: transform .18s ease, color .18s ease, opacity .18s ease;
+    opacity: .92;
+}
+
+#side-menu>li>a {
+    display: flex;
+    align-items: center;
+}
+
+#side-menu li a:hover i.menu-icon {
+    transform: translateX(2px);
+    opacity: 1;
+}
+
+#side-menu li.mm-active>a i.menu-icon,
+#side-menu li.active>a i.menu-icon {
+    color: var(--bs-primary, #0d6efd);
+    opacity: 1;
+}
+
+/* Optional subtle tints per category */
+.icon-dashboard {
+    color: #0ea5e9;
+}
+
+.icon-admission {
+    color: #22c55e;
+}
+
+.icon-reports {
+    color: #f59e0b;
+}
+
+.icon-settings {
+    color: #8b5cf6;
+}
+
+.icon-accounts {
+    color: #ef4444;
+}
+
+.icon-docs {
+    color: #14b8a6;
+}
+
+.icon-qr {
+    color: #e11d48;
+}
+
+.icon-list {
+    color: #64748b;
+}
+
+.icon-lock {
+    color: #0ea5e9;
+}
+
+.icon-logout {
+    color: #475569;
+}

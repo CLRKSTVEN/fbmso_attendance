@@ -1,0 +1,11 @@
+
+SRMS
+94389fce91784839baf56c9d7a77db7e - admin@softtechservices.Note
+
+5d042c115263070485115b26cf65ed85 - artadybasty@gmail.com
+
+
+
+
+Note your Moodle REST endpoint
+https://<your-moodle>/webservice/rest/server.php

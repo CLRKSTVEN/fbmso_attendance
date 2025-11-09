@@ -1,0 +1,11 @@
+RewriteEngine On
+
+# Uncomment the line below if the app is deployed in a subdirectory.
+# RewriteBase /subdir/
+
+# Allow existing files and directories to be served directly.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Route everything else through index.php for CodeIgniter.
+RewriteRule ^(.*)$ index.php/$1 [L,QSA]
