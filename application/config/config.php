@@ -3,7 +3,8 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 // $config['base_url'] = 'https://college-my.wcmanila.edu.ph/';
 // $config['base_url'] = 'http://localhost/attendance-srms/';
-$config['base_url'] = 'https://fbmso.softtechco.biz/';
+// $config['base_url'] = 'https://fbmso.softtechco.biz/';
+$config['base_url'] = 'http://localhost/fbmso_attendance/';
 $config['enable_hooks'] = TRUE;
 $config['maintenance_mode'] = False;
 
