@@ -52,7 +52,6 @@
                                                 <tr>
                                                     <th>Description</th>
                                                     <th class="text-right">Amount</th>
-                                                    <th>Type</th>
                                                     <th>Action</th>
                                                 </tr>
                                             </thead>
@@ -61,24 +60,30 @@
                                                     <tr>
                                                         <td><?= htmlspecialchars((string)$fee->Description, ENT_QUOTES, 'UTF-8'); ?></td>
                                                         <td class="text-right"><?= number_format((float)$fee->Amount, 2); ?></td>
-                                                        <td><?= htmlspecialchars((string)$fee->feesType, ENT_QUOTES, 'UTF-8'); ?></td>
                                                         <td>
                                                             <div class="d-flex align-items-center">
+
+                                                                <!-- EDIT BUTTON -->
                                                                 <button
                                                                     type="button"
-                                                                    class="btn btn-info btn-sm mr-1 edit-fee-btn"
+                                                                    class="btn btn-info btn-sm mr-2 edit-fee-btn"
                                                                     data-feesid="<?= (int)$fee->feesid; ?>"
                                                                     data-description="<?= htmlspecialchars((string)$fee->Description, ENT_QUOTES, 'UTF-8'); ?>"
-                                                                    data-amount="<?= htmlspecialchars((string)$fee->Amount, ENT_QUOTES, 'UTF-8'); ?>"
-                                                                    data-feestype="<?= htmlspecialchars((string)$fee->feesType, ENT_QUOTES, 'UTF-8'); ?>">
-                                                                    Edit
+                                                                    data-amount="<?= htmlspecialchars((string)$fee->Amount, ENT_QUOTES, 'UTF-8'); ?>">
+                                                                    <i class="mdi mdi-pencil"></i>
                                                                 </button>
 
-                                                                <form method="post" action="<?= base_url('Accounting/course_setUp'); ?>" class="delete-fee-form mb-0">
+                                                                <!-- DELETE FORM -->
+                                                                <form method="post"
+                                                                    action="<?= base_url('Accounting/course_setUp'); ?>"
+                                                                    class="delete-fee-form mb-0">
                                                                     <input type="hidden" name="action" value="delete">
                                                                     <input type="hidden" name="feesid" value="<?= (int)$fee->feesid; ?>">
-                                                                    <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                                                                    <button type="submit" class="btn btn-danger btn-sm">
+                                                                        <i class="mdi mdi-delete"></i>
+                                                                    </button>
                                                                 </form>
+
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -126,24 +131,10 @@
                                 value="<?= htmlspecialchars(set_value('Description'), ENT_QUOTES, 'UTF-8'); ?>" required>
                         </div>
 
-                        <div class="form-row">
-                            <div class="form-group col-md-6">
-                                <label for="feeAmount">Amount</label>
-                                <input type="number" class="form-control" id="feeAmount" name="Amount" min="0" step="0.01"
-                                    value="<?= htmlspecialchars(set_value('Amount'), ENT_QUOTES, 'UTF-8'); ?>" required>
-                            </div>
-
-                            <div class="form-group col-md-6">
-                                <label for="feeType">Fee Type</label>
-                                <select class="form-control" id="feeType" name="feesType" required>
-                                    <option value="">Select fee type...</option>
-                                    <?php foreach (['School Fee', 'Tuition', 'Miscellaneous', 'Service'] as $type): ?>
-                                        <option value="<?= htmlspecialchars($type, ENT_QUOTES, 'UTF-8'); ?>" <?= set_select('feesType', $type, $type === 'School Fee'); ?>>
-                                            <?= htmlspecialchars($type, ENT_QUOTES, 'UTF-8'); ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
+                        <div class="form-group mb-3">
+                            <label for="feeAmount">Amount</label>
+                            <input type="number" class="form-control" id="feeAmount" name="Amount" min="0" step="0.01"
+                                value="<?= htmlspecialchars(set_value('Amount'), ENT_QUOTES, 'UTF-8'); ?>" required>
                         </div>
                     </div>
 
@@ -179,23 +170,9 @@
                             <input type="text" class="form-control" id="editFeeDescription" name="Description" required>
                         </div>
 
-                        <div class="form-row">
-                            <div class="form-group col-md-6">
-                                <label for="editFeeAmount">Amount</label>
-                                <input type="number" class="form-control" id="editFeeAmount" name="Amount" min="0" step="0.01" required>
-                            </div>
-
-                            <div class="form-group col-md-6">
-                                <label for="editFeeType">Fee Type</label>
-                                <select class="form-control" id="editFeeType" name="feesType" required>
-                                    <option value="">Select fee type...</option>
-                                    <?php foreach (['School Fee', 'Tuition', 'Miscellaneous', 'Service'] as $type): ?>
-                                        <option value="<?= htmlspecialchars($type, ENT_QUOTES, 'UTF-8'); ?>">
-                                            <?= htmlspecialchars($type, ENT_QUOTES, 'UTF-8'); ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
+                        <div class="form-group mb-3">
+                            <label for="editFeeAmount">Amount</label>
+                            <input type="number" class="form-control" id="editFeeAmount" name="Amount" min="0" step="0.01" required>
                         </div>
                     </div>
 
@@ -219,31 +196,12 @@
                     ]
                 });
 
-                // ADD modal init select2 (dropdownParent)
-                $('#addFeeModal').on('shown.bs.modal', function() {
-                    $('#feeType').select2({
-                        width: '100%',
-                        dropdownParent: $('#addFeeModal')
-                    });
-                });
-
                 // cleanup add modal on close (prevents double-init)
                 $('#addFeeModal').on('hidden.bs.modal', function() {
-                    if ($.fn.select2) {
-                        try {
-                            $('#feeType').select2('destroy');
-                        } catch (e) {}
-                    }
                     // optional: reset form
                     $('#addFeeForm')[0].reset();
                     $('#feeDescription').val('');
                     $('#feeAmount').val('');
-                });
-
-                // EDIT modal select2
-                $('#editFeeType').select2({
-                    width: '100%',
-                    dropdownParent: $('#editFeeModal')
                 });
 
                 // open edit modal and fill
@@ -253,11 +211,9 @@
                     var feeId = String($btn.data('feesid') || '');
                     var description = String($btn.data('description') || '');
                     var amount = String($btn.data('amount') || '');
-                    var feesType = String($btn.data('feestype') || '');
 
                     $('#editFeeId').val(feeId);
                     $('#editFeeDescription').val(description);
-                    $('#editFeeType').val(feesType).trigger('change');
 
                     var amountNum = parseFloat(amount);
                     if (isNaN(amountNum)) amountNum = 0;

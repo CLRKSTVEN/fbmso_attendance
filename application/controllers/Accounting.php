@@ -721,4 +721,97 @@ class Accounting extends CI_Controller
 		$to = sprintf('%04d-12-31', $year);
 		$this->renderCollection($from, $to, 'Collection Report (Yearly)');
 	}
+	public function deletePayment()
+	{
+		$this->ensureAccess();
+
+		if (strtoupper((string)$this->input->method()) !== 'POST') {
+			show_error('Invalid request method', 405);
+			return;
+		}
+
+		$id = (int)$this->input->post('id', true);
+		if ($id <= 0) {
+			$this->session->set_flashdata('danger', 'Invalid payment ID.');
+			redirect('Accounting/Payment');
+			return;
+		}
+
+		// Fetch payment first (needed for recompute)
+		$payment = $this->db->select('ID, StudentNumber, Amount, Sem, SY, ORStatus, CollectionSource')
+			->from('paymentsaccounts')
+			->where('ID', $id)
+			->limit(1)
+			->get()
+			->row();
+
+		if (!$payment) {
+			$this->session->set_flashdata('danger', 'Payment not found.');
+			redirect('Accounting/Payment');
+			return;
+		}
+
+		// Safety guards (optional, but recommended)
+		if ((string)$payment->ORStatus !== 'Valid') {
+			$this->session->set_flashdata('danger', 'Only VALID payments can be deleted.');
+			redirect('Accounting/Payment');
+			return;
+		}
+
+		if ((string)$payment->CollectionSource !== "Student's Account") {
+			$this->session->set_flashdata('danger', "This payment is not under Student's Account.");
+			redirect('Accounting/Payment');
+			return;
+		}
+
+		$studentNumber = trim((string)$payment->StudentNumber);
+		$sem = trim((string)$payment->Sem);
+		$sy  = trim((string)$payment->SY);
+
+		$this->db->trans_start();
+
+		// Delete row
+		$this->db->where('ID', (int)$id)->delete('paymentsaccounts');
+
+		// Recompute totals (ONLY for same sem/sy)
+		if ($studentNumber !== '' && $sem !== '' && $sy !== '') {
+			// total payments = sum of valid Student's Account payments in same sem/sy
+			$sumRow = $this->db->select('COALESCE(SUM(Amount),0) AS total', false)
+				->from('paymentsaccounts')
+				->where('StudentNumber', $studentNumber)
+				->where('Sem', $sem)
+				->where('SY', $sy)
+				->where('ORStatus', 'Valid')
+				->where('CollectionSource', "Student's Account")
+				->get()
+				->row();
+
+			$newTotal = (float)($sumRow->total ?? 0);
+
+			// Update studeaccount using your same balance formula style
+			$newTotalSql = $this->db->escape($newTotal);
+
+			$this->db->set('TotalPayments', $newTotalSql, false);
+			$this->db->set(
+				'CurrentBalance',
+				"GREATEST(COALESCE(AcctTotal,0) - COALESCE(Discount,0) - {$newTotalSql}, 0)",
+				false
+			);
+			$this->db->where('StudentNumber', $studentNumber)
+				->where('Sem', $sem)
+				->where('SY', $sy)
+				->update('studeaccount');
+		}
+
+		$this->db->trans_complete();
+
+		if ($this->db->trans_status() === false) {
+			$this->session->set_flashdata('danger', 'Unable to delete payment. Please try again.');
+			redirect('Accounting/Payment');
+			return;
+		}
+
+		$this->session->set_flashdata('success', 'Payment deleted successfully.');
+		redirect('Accounting/Payment');
+	}
 }
