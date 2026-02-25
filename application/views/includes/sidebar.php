@@ -135,6 +135,32 @@ $showOnline = (int)($online_settings->show_online_payments ?? 1);
                             <span> Reports </span>
                         </a>
                     </li>
+                    <?php
+                    $billingOpen = (
+                        stripos($currentUri, 'Accounting/Payment') === 0 ||
+                        stripos($currentUri, 'Accounting/receipt') === 0 ||
+                        stripos($currentUri, 'Accounting/course_setUp') === 0 ||
+                        stripos($currentUri, 'Accounting/collectionReport') === 0 ||
+                        stripos($currentUri, 'Accounting/collectionDateRange') === 0 ||
+                        stripos($currentUri, 'Accounting/collectionMonthly') === 0 ||
+                        stripos($currentUri, 'Accounting/collectionYear') === 0
+                    );
+                    $billingExpand = $billingOpen ? 'true' : 'false';
+                    $billingShow   = $billingOpen ? 'mm-show' : '';
+                    $billingActive = $billingOpen ? 'mm-active mm-open' : '';
+                    ?>
+                    <li class="<?= $billingActive; ?>">
+                        <a href="javascript:void(0);" class="waves-effect has-arrow" aria-expanded="<?= $billingExpand; ?>">
+                            <i class="ion ion-ios-cash"></i>
+                            <span> Accounting </span>
+                            <span class="menu-arrow"></span>
+                        </a>
+                        <ul class="nav-second-level <?= $billingShow; ?>" aria-expanded="<?= $billingExpand; ?>">
+                            <li><a href="<?= base_url('Accounting/Payment'); ?>">Payment Entry</a></li>
+                            <li><a href="<?= base_url('Accounting/course_setUp'); ?>">Fees Setup</a></li>
+                            <li><a href="<?= base_url('Accounting/collectionReport'); ?>">Collection Report</a></li>
+                        </ul>
+                    </li>
 
                     <!-- To Do (keep visible) -->
                     <!-- <li>
@@ -907,6 +933,7 @@ $showOnline = (int)($online_settings->show_online_payments ?? 1);
             // Expand states per group
             list($paymentsExpanded, $paymentsShow) = $open([
                 'Accounting/Payment',
+                'Accounting/receipt',
                 'Accounting/services',
                 'Page/proof_payment_view',
                 'Page/onlinePaymentsAll',
