@@ -84,9 +84,20 @@
                                                         <td class="text-right"><?= number_format((float)($row->Amount ?? 0), 2); ?></td>
                                                         <td><?= htmlspecialchars((string)($row->PaymentType ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
                                                         <td>
-                                                            <a class="btn btn-sm btn-outline-primary" href="<?= base_url('Accounting/receipt/' . (int)($row->ID ?? 0)); ?>" target="_blank">
+                                                            <button type="button" class="btn btn-sm btn-outline-primary print-receipt-btn"
+                                                                data-id="<?= (int)($row->ID ?? 0); ?>"
+                                                                data-ornumber="<?= htmlspecialchars((string)($row->ORNumber ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
+                                                                data-date="<?= htmlspecialchars((string)($row->PDate ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
+                                                                data-studentname="<?= htmlspecialchars($studentName, ENT_QUOTES, 'UTF-8'); ?>"
+                                                                data-studentno="<?= htmlspecialchars((string)($row->StudentNumber ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
+                                                                data-description="<?= htmlspecialchars((string)($row->description ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
+                                                                data-paymenttype="<?= htmlspecialchars((string)($row->PaymentType ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
+                                                                data-amount="<?= htmlspecialchars((string)($row->Amount ?? 0), ENT_QUOTES, 'UTF-8'); ?>"
+                                                                data-sem="<?= htmlspecialchars((string)($row->Sem ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
+                                                                data-sy="<?= htmlspecialchars((string)($row->SY ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
+                                                                data-cashier="<?= htmlspecialchars((string)($row->Cashier ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
                                                                 <i class="mdi mdi-printer"></i> Print
-                                                            </a>
+                                                            </button>
                                                         </td>
                                                     </tr>
                                                 <?php endforeach; ?>
@@ -228,10 +239,93 @@
         </div>
     </div>
 
+    <!-- PRINT RECEIPT MODAL -->
+    <div class="modal fade" id="printReceiptModal" tabindex="-1" role="dialog" aria-labelledby="printReceiptModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-sm" role="document" style="max-width: 5.5in;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="printReceiptModalLabel">Receipt Preview</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body p-0">
+                    <div class="receipt-preview">
+                        <div class="receipt-body">
+                            <!-- Header -->
+                            <div class="receipt-header">
+                                <div class="school-name" id="prevSchoolName"></div>
+                                <div class="receipt-title">OFFICIAL RECEIPT</div>
+                            </div>
+
+                            <div class="receipt-divider"></div>
+
+                            <!-- OR Number -->
+                            <div class="receipt-ornumber">
+                                <span class="label">OR NO:</span>
+                                <span class="value" id="prevORNumber"></span>
+                            </div>
+
+                            <!-- Details -->
+                            <div class="receipt-details">
+                                <div class="detail-row">
+                                    <span class="label">Date:</span>
+                                    <span class="value" id="prevDate"></span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="label">Received From:</span>
+                                    <span class="value" id="prevStudentName"></span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="label">Student No:</span>
+                                    <span class="value" id="prevStudentNo"></span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="label">Description:</span>
+                                    <span class="value" id="prevDescription"></span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="label">Type:</span>
+                                    <span class="value" id="prevPaymentType"></span>
+                                </div>
+                            </div>
+
+                            <div class="receipt-divider"></div>
+
+                            <!-- Amount -->
+                            <div class="receipt-amount">
+                                <span class="label">AMOUNT:</span>
+                                <span class="value" id="prevAmount"></span>
+                            </div>
+
+                            <div class="receipt-divider"></div>
+
+                            <!-- Signature -->
+                            <div class="receipt-signature">
+                                <div class="sig-line"></div>
+                                <div class="sig-label" id="prevCashier"></div>
+                                <div class="sig-pos">Cashier</div>
+                            </div>
+
+                            <div class="receipt-footer" id="prevFooter"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="printReceipt()">
+                        <i class="mdi mdi-printer"></i> Print
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         (function() {
             var baseUrl = <?= json_encode(base_url()); ?>;
             var semester = <?= json_encode((string)$semester); ?>;
+            var schoolName = <?= json_encode((string)($settings->SchoolName ?? 'School')); ?>;
 
             function setCheckVisibility() {
                 var isCheck = $('#paymentType').val() === 'Check';
@@ -369,6 +463,50 @@
                 $(document).on('change', '#paymentType', setCheckVisibility);
                 $(document).on('change', '#feeTemplate', applyFeeSelection);
 
+                // Handle print receipt button
+                $(document).on('click', '.print-receipt-btn', function() {
+                    var data = {
+                        ornumber: $(this).data('ornumber'),
+                        date: $(this).data('date'),
+                        studentname: $(this).data('studentname'),
+                        studentno: $(this).data('studentno'),
+                        description: $(this).data('description'),
+                        paymenttype: $(this).data('paymenttype'),
+                        amount: $(this).data('amount'),
+                        sem: $(this).data('sem'),
+                        sy: $(this).data('sy'),
+                        cashier: $(this).data('cashier')
+                    };
+
+                    // Format date
+                    if (data.date && data.date !== '0000-00-00') {
+                        var dateObj = new Date(data.date);
+                        data.date = dateObj.toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                        });
+                    }
+
+                    // Populate receipt
+                    $('#prevSchoolName').text(schoolName);
+                    $('#prevORNumber').text(data.ornumber);
+                    $('#prevDate').text(data.date);
+                    $('#prevStudentName').text(data.studentname);
+                    $('#prevStudentNo').text(data.studentno);
+                    $('#prevDescription').text(data.description);
+                    $('#prevPaymentType').text(data.paymenttype);
+                    $('#prevAmount').text('PHP ' + Number(data.amount || 0).toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    }));
+                    $('#prevCashier').text(data.cashier);
+                    $('#prevFooter').text('Sem/SY: ' + data.sem + ' ' + data.sy);
+
+                    // Show modal
+                    $('#printReceiptModal').modal('show');
+                });
+
                 $('#paymentForm').on('submit', function(e) {
                     if (!validateBeforeSubmit()) {
                         e.preventDefault();
@@ -376,7 +514,145 @@
                 });
             });
         })();
+
+        function printReceipt() {
+            var printContent = $('.receipt-preview').html();
+            var printWindow = window.open('', '', 'height=500,width=500');
+            printWindow.document.write('<html><head><title>Receipt</title>');
+            printWindow.document.write('<style>');
+            printWindow.document.write(`
+                body { font-family: "Courier New", monospace; margin: 0; padding: 0.2in; }
+                .receipt-body { font-size: 11px; line-height: 1.3; }
+                .receipt-header { text-align: center; margin-bottom: 0.15in; }
+                .school-name { font-size: 12px; font-weight: bold; margin-bottom: 2px; }
+                .receipt-title { font-size: 11px; font-weight: bold; letter-spacing: 1px; }
+                .receipt-divider { border-top: 1px dashed #333; margin: 0.1in 0; }
+                .receipt-ornumber { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 0.1in; font-size: 12px; }
+                .receipt-details { margin-bottom: 0.1in; }
+                .detail-row { display: flex; justify-content: space-between; margin-bottom: 3px; padding: 0 2px; }
+                .detail-row .label { font-weight: bold; width: 35%; flex-shrink: 0; }
+                .detail-row .value { text-align: right; word-wrap: break-word; }
+                .receipt-amount { display: flex; justify-content: space-between; font-weight: bold; font-size: 12px; padding: 0.1in 0; margin-bottom: 0.1in; }
+                .receipt-signature { text-align: center; margin-top: 0.2in; margin-bottom: 0.1in; }
+                .sig-line { border-top: 1px solid #333; width: 60%; margin: 0 auto 2px; height: 20px; }
+                .sig-label { font-size: 9px; font-weight: bold; }
+                .sig-pos { font-size: 8px; margin-top: 1px; }
+                .receipt-footer { text-align: center; font-size: 9px; border-top: 1px dashed #333; padding-top: 3px; margin-top: 0.1in; }
+            `);
+            printWindow.document.write('</style></head><body>');
+            printWindow.document.write(printContent);
+            printWindow.document.write('</body></html>');
+            printWindow.document.close();
+            printWindow.print();
+        }
     </script>
-</body>
+
+    <style>
+        .receipt-preview {
+            max-width: 5.5in;
+            margin: 0 auto;
+            background: #fff;
+        }
+
+        .receipt-body {
+            padding: 0.3in;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            line-height: 1.3;
+        }
+
+        .receipt-header {
+            text-align: center;
+            margin-bottom: 0.15in;
+        }
+
+        .school-name {
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+
+        .receipt-title {
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .receipt-divider {
+            border-top: 1px dashed #333;
+            margin: 0.1in 0;
+        }
+
+        .receipt-ornumber {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            margin-bottom: 0.1in;
+            font-size: 12px;
+        }
+
+        .receipt-details {
+            margin-bottom: 0.1in;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+            padding: 0 2px;
+        }
+
+        .detail-row .label {
+            font-weight: bold;
+            width: 35%;
+            flex-shrink: 0;
+        }
+
+        .detail-row .value {
+            text-align: right;
+            word-wrap: break-word;
+            word-break: break-word;
+        }
+
+        .receipt-amount {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            font-size: 12px;
+            padding: 0.1in 0;
+            margin-bottom: 0.1in;
+        }
+
+        .receipt-signature {
+            text-align: center;
+            margin-top: 0.2in;
+            margin-bottom: 0.1in;
+        }
+
+        .sig-line {
+            border-top: 1px solid #333;
+            width: 60%;
+            margin: 0 auto 2px;
+            height: 20px;
+        }
+
+        .sig-label {
+            font-size: 9px;
+            font-weight: bold;
+        }
+
+        .sig-pos {
+            font-size: 8px;
+            margin-top: 1px;
+        }
+
+        .receipt-footer {
+            text-align: center;
+            font-size: 9px;
+            border-top: 1px dashed #333;
+            padding-top: 3px;
+            margin-top: 0.1in;
+        }
+    </style>
 
 </html>

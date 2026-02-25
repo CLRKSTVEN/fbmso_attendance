@@ -473,6 +473,13 @@ class Accounting extends CI_Controller
 		}
 
 		$now = new DateTime('now', new DateTimeZone('Asia/Manila'));
+
+		$settings = $this->db->select('SchoolName, SchoolAddress, telNo, cashier, cashierPosition, letterhead_web')
+			->from('o_srms_settings')
+			->limit(1)
+			->get()
+			->row();
+
 		$data = [
 			'semester'             => $sem,
 			'sy'                   => $sy,
@@ -480,7 +487,8 @@ class Accounting extends CI_Controller
 			'next_or_number'       => $this->generateNextOrNumber(),
 			'students'             => $this->getStudentsForPayment($sem, $sy),
 			'recent_payments'      => $this->getRecentPayments($sem, $sy),
-			'fee_templates'        => $this->getFeeTemplates()
+			'fee_templates'        => $this->getFeeTemplates(),
+			'settings'             => $settings
 		];
 
 		$this->load->view('accounting_payment', $data);

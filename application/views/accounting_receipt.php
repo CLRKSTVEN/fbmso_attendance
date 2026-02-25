@@ -32,7 +32,7 @@
     $amountValue = (float)($payment->Amount ?? 0);
     ?>
 
-    <div class="container-fluid py-4">
+    <div class="container-fluid p-2">
         <?php if (!empty($flashSuccess)): ?>
             <div class="alert alert-success no-print" role="alert"><?= htmlspecialchars($flashSuccess, ENT_QUOTES, 'UTF-8'); ?></div>
         <?php endif; ?>
@@ -40,85 +40,89 @@
             <div class="alert alert-danger no-print" role="alert"><?= htmlspecialchars($flashDanger, ENT_QUOTES, 'UTF-8'); ?></div>
         <?php endif; ?>
 
-        <div class="d-flex justify-content-between align-items-center mb-3 no-print">
-            <a href="<?= base_url('Accounting/Payment'); ?>" class="btn btn-secondary">
-                <i class="mdi mdi-arrow-left"></i> Back to Payment
+        <div class="d-flex justify-content-between align-items-center mb-2 no-print">
+            <a href="<?= base_url('Accounting/Payment'); ?>" class="btn btn-secondary btn-sm">
+                <i class="mdi mdi-arrow-left"></i> Back
             </a>
-            <button class="btn btn-primary" onclick="window.print()">
-                <i class="mdi mdi-printer"></i> Print Receipt
+            <button class="btn btn-primary btn-sm" onclick="window.print()">
+                <i class="mdi mdi-printer"></i> Print
             </button>
         </div>
 
-        <div class="card receipt-card mx-auto">
-            <div class="card-body p-4">
-                <div class="text-center mb-3">
-                    <?php if ($letterhead !== ''): ?>
-                        <img src="<?= base_url('upload/banners/' . rawurlencode($letterhead)); ?>" alt="Letterhead" class="img-fluid mb-2" style="max-height: 120px;">
-                    <?php endif; ?>
-                    <h4 class="mb-1"><?= htmlspecialchars($schoolName, ENT_QUOTES, 'UTF-8'); ?></h4>
-                    <?php if ($schoolAddr !== ''): ?><div><?= htmlspecialchars($schoolAddr, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
-                    <?php if ($telNo !== ''): ?><div>Contact: <?= htmlspecialchars($telNo, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
+        <div class="receipt-card mx-auto">
+            <div class="receipt-body">
+                <!-- Header -->
+                <div class="receipt-header">
+                    <div class="school-name"><?= htmlspecialchars($schoolName, ENT_QUOTES, 'UTF-8'); ?></div>
+                    <div class="receipt-title">OFFICIAL RECEIPT</div>
                 </div>
 
-                <hr>
+                <div class="receipt-divider"></div>
 
-                <div class="d-flex justify-content-between align-items-start flex-wrap mb-3">
-                    <div>
-                        <h5 class="mb-1">Official Receipt</h5>
-                        <div><strong>OR No.:</strong> <?= htmlspecialchars((string)$payment->ORNumber, ENT_QUOTES, 'UTF-8'); ?></div>
-                        <div><strong>Date:</strong> <?= htmlspecialchars($paidAt, ENT_QUOTES, 'UTF-8'); ?><?= $createdTime !== '' ? ' ' . htmlspecialchars($createdTime, ENT_QUOTES, 'UTF-8') : ''; ?></div>
-                    </div>
-                    <div class="text-right mt-2 mt-md-0">
-                        <div><strong>Sem/SY:</strong> <?= htmlspecialchars(trim((string)$payment->Sem . ' ' . (string)$payment->SY), ENT_QUOTES, 'UTF-8'); ?></div>
-                        <div><strong>Student No.:</strong> <?= htmlspecialchars((string)$payment->StudentNumber, ENT_QUOTES, 'UTF-8'); ?></div>
-                    </div>
+                <!-- OR Number -->
+                <div class="receipt-ornumber">
+                    <span class="label">OR NO:</span>
+                    <span class="value"><?= htmlspecialchars((string)$payment->ORNumber, ENT_QUOTES, 'UTF-8'); ?></span>
                 </div>
 
-                <table class="table table-bordered mb-3">
-                    <tr>
-                        <th width="30%">Received From</th>
-                        <td><?= htmlspecialchars($studentName, ENT_QUOTES, 'UTF-8'); ?></td>
-                    </tr>
-                    <tr>
-                        <th>Description</th>
-                        <td><?= htmlspecialchars((string)$payment->description, ENT_QUOTES, 'UTF-8'); ?></td>
-                    </tr>
-                    <tr>
-                        <th>Payment Type</th>
-                        <td><?= htmlspecialchars((string)$payment->PaymentType, ENT_QUOTES, 'UTF-8'); ?></td>
-                    </tr>
+                <!-- Details -->
+                <div class="receipt-details">
+                    <div class="detail-row">
+                        <span class="label">Date:</span>
+                        <span class="value"><?= htmlspecialchars($paidAt, ENT_QUOTES, 'UTF-8'); ?></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Received From:</span>
+                        <span class="value"><?= htmlspecialchars($studentName, ENT_QUOTES, 'UTF-8'); ?></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Student No:</span>
+                        <span class="value"><?= htmlspecialchars((string)$payment->StudentNumber, ENT_QUOTES, 'UTF-8'); ?></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Description:</span>
+                        <span class="value"><?= htmlspecialchars((string)$payment->description, ENT_QUOTES, 'UTF-8'); ?></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Type:</span>
+                        <span class="value"><?= htmlspecialchars((string)$payment->PaymentType, ENT_QUOTES, 'UTF-8'); ?></span>
+                    </div>
                     <?php if (!empty($payment->refNo)): ?>
-                        <tr>
-                            <th>Reference No.</th>
-                            <td><?= htmlspecialchars((string)$payment->refNo, ENT_QUOTES, 'UTF-8'); ?></td>
-                        </tr>
+                        <div class="detail-row">
+                            <span class="label">Ref No:</span>
+                            <span class="value"><?= htmlspecialchars((string)$payment->refNo, ENT_QUOTES, 'UTF-8'); ?></span>
+                        </div>
                     <?php endif; ?>
                     <?php if (!empty($payment->CheckNumber) || !empty($payment->Bank)): ?>
-                        <tr>
-                            <th>Check Details</th>
-                            <td>
-                                <?php if (!empty($payment->CheckNumber)): ?>Check No: <?= htmlspecialchars((string)$payment->CheckNumber, ENT_QUOTES, 'UTF-8'); ?><?php endif; ?>
-                                <?php if (!empty($payment->Bank)): ?><?= !empty($payment->CheckNumber) ? ' | ' : ''; ?>Bank: <?= htmlspecialchars((string)$payment->Bank, ENT_QUOTES, 'UTF-8'); ?><?php endif; ?>
-                            </td>
-                        </tr>
+                        <div class="detail-row">
+                            <span class="label">Check:</span>
+                            <span class="value">
+                                <?php if (!empty($payment->CheckNumber)): ?>#<?= htmlspecialchars((string)$payment->CheckNumber, ENT_QUOTES, 'UTF-8'); ?><?php endif; ?>
+                                <?php if (!empty($payment->Bank)): ?><?= !empty($payment->CheckNumber) ? ' - ' : ''; ?><?= htmlspecialchars((string)$payment->Bank, ENT_QUOTES, 'UTF-8'); ?><?php endif; ?>
+                            </span>
+                        </div>
                     <?php endif; ?>
-                    <tr>
-                        <th>Amount</th>
-                        <td><strong>PHP <?= number_format($amountValue, 2); ?></strong></td>
-                    </tr>
-                </table>
+                </div>
 
-                <div class="row mt-5">
-                    <div class="col-md-6">
-                        <div class="text-muted small">Received by</div>
-                        <div class="signature-line mt-4"></div>
-                        <div class="font-weight-bold mt-1"><?= htmlspecialchars($cashierName, ENT_QUOTES, 'UTF-8'); ?></div>
-                        <div class="text-muted"><?= htmlspecialchars($cashierPos, ENT_QUOTES, 'UTF-8'); ?></div>
-                    </div>
-                    <div class="col-md-6 text-md-right mt-4 mt-md-0">
-                        <div class="text-muted small">Payor Signature</div>
-                        <div class="signature-line mt-4"></div>
-                    </div>
+                <div class="receipt-divider"></div>
+
+                <!-- Amount -->
+                <div class="receipt-amount">
+                    <span class="label">AMOUNT:</span>
+                    <span class="value">PHP <?= number_format($amountValue, 2); ?></span>
+                </div>
+
+                <div class="receipt-divider"></div>
+
+                <!-- Signature -->
+                <div class="receipt-signature">
+                    <div class="sig-line"></div>
+                    <div class="sig-label"><?= htmlspecialchars($cashierName, ENT_QUOTES, 'UTF-8'); ?></div>
+                    <div class="sig-pos"><?= htmlspecialchars($cashierPos, ENT_QUOTES, 'UTF-8'); ?></div>
+                </div>
+
+                <div class="receipt-footer">
+                    Sem/SY: <?= htmlspecialchars(trim((string)$payment->Sem . ' ' . (string)$payment->SY), ENT_QUOTES, 'UTF-8'); ?>
                 </div>
             </div>
         </div>
@@ -128,38 +132,143 @@
 
     <style>
         .receipt-card {
-            max-width: 900px;
-            border: 1px solid #dfe6ee;
+            max-width: 4.5in;
+            margin: 0 auto;
+            background: #fff;
+            border: 1px solid #ddd;
         }
 
-        .signature-line {
+        .receipt-body {
+            padding: 0.3in;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            line-height: 1.3;
+        }
+
+        .receipt-header {
+            text-align: center;
+            margin-bottom: 0.15in;
+        }
+
+        .school-name {
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+
+        .receipt-title {
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .receipt-divider {
+            border-top: 1px dashed #333;
+            margin: 0.1in 0;
+        }
+
+        .receipt-ornumber {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            margin-bottom: 0.1in;
+            font-size: 12px;
+        }
+
+        .receipt-details {
+            margin-bottom: 0.1in;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+            padding: 0 2px;
+        }
+
+        .detail-row .label {
+            font-weight: bold;
+            width: 35%;
+            flex-shrink: 0;
+        }
+
+        .detail-row .value {
+            text-align: right;
+            word-wrap: break-word;
+            word-break: break-word;
+        }
+
+        .receipt-amount {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            font-size: 12px;
+            padding: 0.1in 0;
+            margin-bottom: 0.1in;
+        }
+
+        .receipt-signature {
+            text-align: center;
+            margin-top: 0.2in;
+            margin-bottom: 0.1in;
+        }
+
+        .sig-line {
             border-top: 1px solid #333;
-            width: 100%;
+            width: 60%;
+            margin: 0 auto 2px;
+            height: 20px;
+        }
+
+        .sig-label {
+            font-size: 9px;
+            font-weight: bold;
+        }
+
+        .sig-pos {
+            font-size: 8px;
+            margin-top: 1px;
+        }
+
+        .receipt-footer {
+            text-align: center;
+            font-size: 9px;
+            border-top: 1px dashed #333;
+            padding-top: 3px;
+            margin-top: 0.1in;
         }
 
         @media print {
+
             .no-print,
             .topbar,
             .left-side-menu,
             .footer,
             .right-bar,
             .page-title-box,
-            #wrapper > .content-page > .content > .container-fluid > .alert {
+            #wrapper>.content-page>.content>.container-fluid>.alert {
                 display: none !important;
             }
 
             body {
                 background: #fff !important;
+                margin: 0 !important;
+                padding: 0 !important;
             }
 
             .container-fluid {
-                padding: 0 !important;
+                padding: 0.2in !important;
+                margin: 0 !important;
             }
 
             .receipt-card {
                 border: 0 !important;
                 box-shadow: none !important;
                 margin: 0 auto !important;
+            }
+
+            .receipt-body {
+                padding: 0.3in !important;
             }
         }
     </style>
