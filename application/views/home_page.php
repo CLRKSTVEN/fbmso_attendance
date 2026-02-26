@@ -616,6 +616,129 @@
       color: #0d1b4b !important;
       font-size: 1rem !important;
     }
+
+    html,
+    body {
+      height: auto;
+    }
+
+    /* ✅ allow scrolling */
+    body {
+      font-family: 'Sora', sans-serif;
+      background: #f0f4ff;
+
+      /* instead of min-height:100vh + overflow:hidden */
+      min-height: 100dvh;
+      /* better on mobile than 100vh */
+      padding: 20px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      overflow-x: hidden;
+      overflow-y: auto;
+      /* ✅ enable vertical scroll */
+      -webkit-overflow-scrolling: touch;
+      /* ✅ smooth iOS scrolling */
+    }
+
+    /* ✅ keep background fixed but don't block scroll */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 15% 20%, #dce8ff 0%, transparent 55%),
+        radial-gradient(ellipse 70% 50% at 85% 80%, #e4edff 0%, transparent 55%),
+        #f0f4ff;
+      z-index: 0;
+      animation: meshShift 12s ease-in-out infinite alternate;
+      pointer-events: none;
+      /* ✅ important */
+    }
+
+    /* ✅ card becomes responsive and scroll-safe */
+    .card {
+      position: relative;
+      z-index: 1;
+      width: min(960px, 100%);
+
+      /* ✅ don’t force a tall fixed layout */
+      min-height: unset;
+      max-height: calc(100dvh - 40px);
+      /* ✅ fits viewport minus padding */
+      overflow: hidden;
+
+      background: rgba(255, 255, 255, 0.75);
+      backdrop-filter: blur(32px) saturate(180%);
+      -webkit-backdrop-filter: blur(32px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      border-radius: 32px;
+      box-shadow:
+        0 2px 0 rgba(255, 255, 255, 0.8) inset,
+        0 40px 80px rgba(100, 130, 200, 0.18),
+        0 8px 20px rgba(100, 130, 200, 0.1);
+
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    /* ✅ make the form side scroll if content exceeds */
+    .side-form {
+      padding: 52px 48px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+
+      overflow-y: auto;
+      /* ✅ internal scroll safety */
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* ✅ mobile tweaks */
+    @media (max-width: 700px) {
+      body {
+        padding: 14px;
+        align-items: stretch;
+        /* ✅ allow full height layout */
+        justify-content: center;
+      }
+
+      .card {
+        grid-template-columns: 1fr;
+        border-radius: 22px;
+        max-height: none;
+        /* ✅ let it grow naturally */
+        overflow: visible;
+        /* ✅ use page scroll */
+      }
+
+      .side-art {
+        display: none;
+      }
+
+      .side-form {
+        padding: 28px 20px;
+        overflow: visible;
+        /* ✅ no trapped scroll */
+      }
+
+      .form-title {
+        font-size: 1.65rem;
+      }
+    }
+
+    /* ✅ optional: for very short screens (landscape phones) */
+    @media (max-height: 640px) and (max-width: 900px) {
+      .card {
+        max-height: calc(100dvh - 24px);
+      }
+
+      .side-form {
+        justify-content: flex-start;
+      }
+    }
   </style>
 </head>
 
@@ -794,19 +917,17 @@
       var infoMsg = <?= json_encode($infoMessage    ?? ''); ?>;
       if (!loginError && !infoMsg) return;
       var isErr = /invalid|incorrect|not active|failed|unauthorized|email not found/i.test(loginError || '');
-      var opts = isErr ?
-        {
-          icon: 'error',
-          title: 'Sign-in failed',
-          text: loginError,
-          confirmButtonColor: '#e74c3c'
-        } :
-        {
-          icon: 'success',
-          title: 'Done',
-          text: infoMsg,
-          confirmButtonColor: '#3b5fd4'
-        };
+      var opts = isErr ? {
+        icon: 'error',
+        title: 'Sign-in failed',
+        text: loginError,
+        confirmButtonColor: '#e74c3c'
+      } : {
+        icon: 'success',
+        title: 'Done',
+        text: infoMsg,
+        confirmButtonColor: '#3b5fd4'
+      };
       if (window.Swal) {
         Swal.fire(opts);
         var fb = document.getElementById('login-error-message');
