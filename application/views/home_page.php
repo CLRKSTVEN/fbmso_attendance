@@ -850,14 +850,14 @@
         <div class="field-group">
           <label class="field-label" for="username">Username</label>
           <div class="field-wrap">
-            <input class="field" id="username" name="username" type="text" autocomplete="username" placeholder="Enter username" required>
+            <input class="field" id="username" name="username" type="text" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Enter username" required>
           </div>
         </div>
 
         <div class="field-group">
           <label class="field-label" for="password">Password</label>
           <div class="field-wrap">
-            <input class="field" id="password" name="password" type="password" autocomplete="current-password" placeholder="••••••••" required style="padding-right:42px">
+            <input class="field" id="password" name="password" type="password" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="••••••••" required style="padding-right:42px">
             <button class="toggle-pass" type="button" id="togglePass" title="Toggle"><i class="fa fa-eye"></i></button>
           </div>
         </div>
@@ -909,6 +909,21 @@
         var show = ipt.type === 'password';
         ipt.type = show ? 'text' : 'password';
         this.firstElementChild.className = show ? 'fa fa-eye-slash' : 'fa fa-eye';
+      });
+    })();
+
+    (function() {
+      var form = document.querySelector('form[action*="Login/auth"]');
+      if (!form) return;
+      form.addEventListener('submit', function() {
+        var u = document.getElementById('username');
+        var p = document.getElementById('password');
+        if (u && typeof u.value === 'string') {
+          u.value = u.value.replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+        }
+        if (p && typeof p.value === 'string') {
+          p.value = p.value.replace(/\u00a0/g, ' ').trim();
+        }
       });
     })();
 

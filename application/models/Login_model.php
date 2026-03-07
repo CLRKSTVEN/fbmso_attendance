@@ -21,11 +21,22 @@ class Login_model extends CI_Model
 
   function validate($username, $password)
   {
-    $this->db->where('username', $username);
-    $this->db->where('password', $password);
-    $this->db->like('acctStat', 'active');
-    $result = $this->db->get('o_users', 1);
-    return $result;
+    $username = trim((string)$username);
+    $password = (string)$password;
+
+    $sql = "
+      SELECT *
+      FROM o_users
+      WHERE (
+        TRIM(username) = TRIM(?)
+        OR TRIM(IDNumber) = TRIM(?)
+      )
+      AND password = ?
+      AND LOWER(TRIM(acctStat)) = 'active'
+      LIMIT 1
+    ";
+
+    return $this->db->query($sql, [$username, $username, $password]);
   }
 
   public function forgotPassword($email)

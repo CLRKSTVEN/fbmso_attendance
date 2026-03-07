@@ -4693,23 +4693,47 @@ class Page extends CI_Controller
 	}
 	public function resetPass()
 	{
-		$u  = (string)$this->input->get('u');              // Username to reset
-		$id = (string)$this->session->userdata('username'); // Resetter username
+		$u  = trim((string)$this->input->get('u', true));    // Username/StudentNumber to reset
+		$id = (string)$this->session->userdata('username');  // Resetter username
+		$returnTo = trim((string)$this->input->get('return_to', true));
+
+		$redirectTo = 'Page/userAccounts';
+		if ($returnTo === 'profileList') {
+			$redirectTo = 'Page/profileList';
+		}
 
 		// Config + login URL
 		$schoolName = $this->SettingsModel->getSchoolName();
 		$loginURL   = base_url('login');
+
+		if ($u === '') {
+			$this->session->set_flashdata('danger', 'No username/StudentNumber provided.');
+			return redirect($redirectTo);
+		}
 
 		// Generate new password (12 chars hex) + hash
 		$password       = bin2hex(random_bytes(6));
 		$hashedPassword = sha1($password); // keep your hashing scheme
 
 		date_default_timezone_set('Asia/Manila');
-		$now  = date('H:i:s A');
-		$date = date('Y-m-d');
 
-		// Fetch user email
-		$user = $this->db->get_where('o_users', ['username' => $u])->row();
+		// Fetch account by username OR IDNumber.
+		// From profileList, restrict to student-type accounts only.
+		$studentOnly = ($redirectTo === 'Page/profileList');
+		$sql = "
+			SELECT *
+			FROM o_users
+			WHERE (
+				BINARY TRIM(username) = BINARY TRIM(?)
+				OR BINARY TRIM(IDNumber) = BINARY TRIM(?)
+			)
+		";
+		if ($studentOnly) {
+			$sql .= " AND position IN ('Student', 'Stude Applicant', 'Student Applicant')";
+		}
+		$sql .= " LIMIT 1";
+		$user = $this->db->query($sql, [$u, $u])->row();
+
 		if (!$user || empty($user->email)) {
 			$this->AuditLogModel->write(
 				'update',
@@ -4720,23 +4744,30 @@ class Page extends CI_Controller
 				null,
 				0,
 				'Password reset failed (no email on file)',
-				['reset_by' => $id]
+				['reset_by' => $id, 'scope' => $studentOnly ? 'student' : 'user']
 			);
-			$this->session->set_flashdata('danger', '<div class="alert alert-danger text-center"><b>Email not found for the selected user.</b></div>');
-			return redirect('Page/userAccounts');
+			$this->session->set_flashdata('danger', 'No account/email found for the selected record.');
+			return redirect($redirectTo);
 		}
 
-		// Update password
-		$ok = $this->db->where('username', $u)->update('o_users', ['password' => $hashedPassword]);
+		$targetUsername = (string)$user->username;
+
+		// Update password (always update by actual username from fetched row).
+		$ok = $this->db->where('username', $targetUsername)->update('o_users', ['password' => $hashedPassword]);
 
 		// AUDIT: unified audit (no password in logs)
 		$this->AuditLogModel->write(
 			'update',
 			'User Accounts',
 			'o_users',
-			$u,
+			$targetUsername,
 			null,
-			['password_reset' => true, 'email_to' => $user->email, 'reset_by' => $id],
+			[
+				'password_reset' => true,
+				'email_to' => $user->email,
+				'reset_by' => $id,
+				'scope' => $studentOnly ? 'student' : 'user'
+			],
 			$ok ? 1 : 0,
 			$ok ? 'Reset user password' : 'Failed to reset user password'
 		);
@@ -4755,7 +4786,7 @@ class Page extends CI_Controller
     <p><strong>Here are your new login credentials:</strong></p>
     <table style="width: 100%; max-width: 400px; border-collapse: collapse; margin-bottom: 20px;">
       <tr><td style="padding:8px;background:#f1f1f1;border:1px solid #ccc;"><strong>Username</strong></td>
-          <td style="padding:8px;border:1px solid #ccc;">' . htmlspecialchars($u) . '</td></tr>
+          <td style="padding:8px;border:1px solid #ccc;">' . htmlspecialchars($targetUsername) . '</td></tr>
       <tr><td style="padding:8px;background:#f1f1f1;border:1px solid #ccc;"><strong>New Password</strong></td>
           <td style="padding:8px;border:1px solid #ccc;">' . $password . '</td></tr>
     </table>
@@ -4770,13 +4801,20 @@ class Page extends CI_Controller
 		$this->email->to($user->email);
 		$this->email->subject('Your Password Has Been Reset');
 		$this->email->message($mail_message);
-		@$this->email->send();
+		$sent = @$this->email->send();
 
-		$this->session->set_flashdata(
-			'success',
-			'<div class="alert alert-success text-center"><b>Password reset successfully. New password sent via email.<br><br>New Password: <span style="color: red;">' . $password . '</span></b></div>'
-		);
-		return redirect('Page/userAccounts');
+		if (!$ok) {
+			$this->session->set_flashdata('danger', 'Password reset failed. Please try again.');
+			return redirect($redirectTo);
+		}
+
+		if ($sent) {
+			$this->session->set_flashdata('success', "Password reset for {$targetUsername}. Temporary password was sent to {$user->email}.");
+		} else {
+			$this->session->set_flashdata('danger', "Password reset for {$targetUsername}, but email sending failed. Check mail settings/logs.");
+		}
+
+		return redirect($redirectTo);
 	}
 	public function updateUserInfo()
 	{

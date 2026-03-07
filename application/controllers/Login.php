@@ -97,10 +97,17 @@ class Login extends CI_Controller
 
     function auth()
     {
-        $username     = $this->input->post('username', TRUE);
+        $username     = (string)$this->input->post('username', TRUE);
+
+        // Normalize copied values (NBSP/zero-width/line-breaks) and trim edges.
+        $username = str_replace(["\xc2\xa0", "\xe2\x80\x8b"], ' ', $username);
+        $username = trim(preg_replace('/\s+/u', ' ', $username));
 
         // 🔧 Do NOT XSS-filter the password (keeps characters intact)
-        $raw_password = $this->input->post('password');   // <-- removed TRUE
+        $raw_password = (string)$this->input->post('password');   // <-- removed TRUE
+        $raw_password = str_replace(["\xc2\xa0", "\xe2\x80\x8b"], ' ', $raw_password);
+        // Trim only leading/trailing whitespace so accidental copy spaces won't break login.
+        $raw_password = preg_replace('/^\s+|\s+$/u', '', $raw_password);
         $password     = sha1($raw_password);              // <-- hash the raw input
 
         $sy       = $this->input->post('sy', TRUE);

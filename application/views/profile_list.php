@@ -58,7 +58,7 @@
                         <th>Student Name</th>
                         <th>Student No.</th>
                         <th style="width:110px">Birth Date</th>
-                        <th style="text-align:center;width:220px">Action</th>
+                        <th style="text-align:center;width:320px">Action</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -98,6 +98,15 @@
                             $canDelete = in_array($role, array_map('strtolower', $allowed), true);
                             ?>
                             <?php if ($canDelete): ?>
+                              <?php
+                              $resetHref = base_url('Page/resetPass?u=' . rawurlencode((string)$studno) . '&return_to=profileList');
+                              ?>
+                              <a href="<?= $resetHref; ?>"
+                                class="btn btn-warning btn-xs reset-pass-btn"
+                                data-href="<?= htmlspecialchars($resetHref, ENT_QUOTES, 'UTF-8'); ?>"
+                                data-studno="<?= htmlspecialchars((string)$studno, ENT_QUOTES, 'UTF-8'); ?>">
+                                <i class="mdi mdi-lock-reset"></i> Reset Password
+                              </a>
                               <form method="post" action="<?= base_url('Page/deleteSignup'); ?>" style="display:inline" class="delete-signup-form">
                                 <input type="hidden" name="id" value="<?= htmlspecialchars($studno, ENT_QUOTES, 'UTF-8'); ?>">
                                 <button type="button" class="btn btn-danger btn-xs delete-signup-btn" data-studno="<?= htmlspecialchars($studno, ENT_QUOTES, 'UTF-8'); ?>">
@@ -228,12 +237,57 @@
         }
       }
 
-      document.addEventListener('click', function(event) {
-        var button = closestByClass(event.target, 'delete-signup-btn');
-        if (!button) {
+      function handleResetClick(event, button) {
+        event.preventDefault();
+        var href = button.getAttribute('data-href') || button.getAttribute('href');
+        if (!href) {
           return;
         }
-        handleDeleteClick(event, button);
+        var studno = button.getAttribute('data-studno') || 'this record';
+        var promptText = 'Reset password for ' + studno + '? A temporary password will be emailed.';
+
+        var confirmed = function(result) {
+          var ok = false;
+          if (result) {
+            if (typeof result.isConfirmed !== 'undefined') {
+              ok = result.isConfirmed;
+            } else if (typeof result.value !== 'undefined') {
+              ok = !!result.value;
+            } else if (result === true) {
+              ok = true;
+            }
+          }
+          if (ok) {
+            window.location.href = href;
+          }
+        };
+
+        if (window.Swal && typeof window.Swal.fire === 'function') {
+          window.Swal.fire({
+            title: 'Reset password?',
+            text: promptText,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, reset',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#f0ad4e',
+            cancelButtonColor: '#6c757d'
+          }).then(confirmed);
+        } else if (window.confirm(promptText)) {
+          window.location.href = href;
+        }
+      }
+
+      document.addEventListener('click', function(event) {
+        var button = closestByClass(event.target, 'delete-signup-btn');
+        if (button) {
+          handleDeleteClick(event, button);
+          return;
+        }
+        var resetButton = closestByClass(event.target, 'reset-pass-btn');
+        if (resetButton) {
+          handleResetClick(event, resetButton);
+        }
       });
     })();
   </script>
