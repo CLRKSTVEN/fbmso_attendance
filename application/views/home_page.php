@@ -887,9 +887,10 @@
           <form id="resetPassword" method="post" action="<?= base_url(); ?>login/forgot_pass">
             <div class="field-group">
               <label class="field-label" for="reset-email">Email address</label>
-              <input type="email" id="reset-email" name="email" class="field" placeholder="you@example.com" required>
+              <small>For security, we only send to registered emails</small>
+              <input type="email" id="reset-email" name="email" class="field" placeholder="Enter Email" required>
             </div>
-            <button class="btn-main" type="submit" style="margin-top:12px"><span>Send reset link</span></button>
+            <button class="btn-main" type="submit" style="margin-top:12px"><span>Send temporary password</span></button>
           </form>
         </div>
       </div>
