@@ -1738,6 +1738,106 @@ class StudentModel extends CI_Model
 		return $this->db->query($wrapped)->result();
 	}
 
+	public function getDuplicateStudentsByName()
+	{
+		// Use the same source as profileList (studentsignup + o_users fallback)
+		// so duplicates shown here match what admins see in profileList.
+		$rows = $this->getsignProfile();
+		$groupsFull = [];
+		$groupsLastFirst = [];
+
+		$normalize = static function ($value) {
+			$v = (string)$value;
+			// Normalize non-breaking spaces and repeated whitespace.
+			$v = str_replace("\xc2\xa0", ' ', $v);
+			$v = preg_replace('/\s+/', ' ', trim($v));
+			// Ignore common punctuation differences while grouping.
+			$v = str_replace(['.', ',', "'", '"'], '', $v);
+			return strtolower($v);
+		};
+
+		foreach ($rows as $row) {
+			$last = $normalize($row->LastName ?? '');
+			$first = $normalize($row->FirstName ?? '');
+			$middle = $normalize($row->MiddleName ?? '');
+
+			if ($last === '' || $first === '') {
+				continue;
+			}
+
+			$keyFull = $last . '|' . $first . '|' . $middle;
+			if (!isset($groupsFull[$keyFull])) {
+				$groupsFull[$keyFull] = [];
+			}
+			$groupsFull[$keyFull][] = $row;
+
+			$keyLastFirst = $last . '|' . $first;
+			if (!isset($groupsLastFirst[$keyLastFirst])) {
+				$groupsLastFirst[$keyLastFirst] = [];
+			}
+			$groupsLastFirst[$keyLastFirst][] = $row;
+		}
+
+		$result = [];
+		$included = [];
+
+		// Priority: exact full-name duplicates (including MiddleName).
+		foreach ($groupsFull as $groupRows) {
+			$dupCount = count($groupRows);
+			if ($dupCount <= 1) {
+				continue;
+			}
+
+			foreach ($groupRows as $row) {
+				$row->duplicate_count = $dupCount;
+				$key = (string)($row->StudentNumber ?? '');
+				$included[$key] = true;
+				$result[] = $row;
+			}
+		}
+
+		// Fallback: same LastName + FirstName (covers slight MiddleName differences).
+		foreach ($groupsLastFirst as $groupRows) {
+			$dupCount = count($groupRows);
+			if ($dupCount <= 1) {
+				continue;
+			}
+			foreach ($groupRows as $row) {
+				$key = (string)($row->StudentNumber ?? '');
+				if (isset($included[$key])) {
+					continue;
+				}
+				$row->duplicate_count = $dupCount;
+				$included[$key] = true;
+				$result[] = $row;
+			}
+		}
+
+		usort($result, static function ($a, $b) {
+			$la = strtolower(trim((string)($a->LastName ?? '')));
+			$lb = strtolower(trim((string)($b->LastName ?? '')));
+			if ($la !== $lb) {
+				return $la <=> $lb;
+			}
+
+			$fa = strtolower(trim((string)($a->FirstName ?? '')));
+			$fb = strtolower(trim((string)($b->FirstName ?? '')));
+			if ($fa !== $fb) {
+				return $fa <=> $fb;
+			}
+
+			$ma = strtolower(trim((string)($a->MiddleName ?? '')));
+			$mb = strtolower(trim((string)($b->MiddleName ?? '')));
+			if ($ma !== $mb) {
+				return $ma <=> $mb;
+			}
+
+			return strcmp((string)($a->StudentNumber ?? ''), (string)($b->StudentNumber ?? ''));
+		});
+
+		return $result;
+	}
+
 
 
 	public function getSignupStudentByNumber($studentNumber)

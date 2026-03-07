@@ -2666,6 +2666,103 @@ class Page extends CI_Controller
 		}
 	}
 
+	public function duplicateStudentsByName()
+	{
+		$result['data'] = $this->StudentModel->getDuplicateStudentsByName();
+		$this->load->view('profile_duplicates', $result);
+	}
+
+	public function deleteDuplicateStudent()
+	{
+		$studno = trim((string)($this->input->post('student_number', true) ?: $this->input->post('id', true)));
+		$username = trim((string)$this->input->post('username', true));
+		$ref = $this->input->server('HTTP_REFERER') ?: 'Page/duplicateStudentsByName';
+
+		if ($studno === '' && $username === '') {
+			$this->session->set_flashdata('danger', 'No StudentNumber/username provided.');
+			redirect($ref);
+			return;
+		}
+
+		// Fallback key: if only one identity value is provided, use it for both.
+		if ($studno === '') {
+			$studno = $username;
+		}
+		if ($username === '') {
+			$username = $studno;
+		}
+
+		$keys = array_values(array_unique(array_filter([
+			trim($studno),
+			trim($username)
+		], static function ($v) {
+			return $v !== '';
+		})));
+
+		$this->db->trans_start();
+
+		// (1) Delete from studentsignup by StudentNumber (exact trimmed match).
+		$aff_studentsignup = 0;
+		foreach ($keys as $k) {
+			$this->db->query(
+				"DELETE FROM studentsignup
+                 WHERE BINARY TRIM(StudentNumber) = BINARY TRIM(?)",
+				[$k]
+			);
+			$aff_studentsignup += (int)$this->db->affected_rows();
+		}
+
+		// (2) Delete from studeprofile by StudentNumber (exact trimmed match).
+		$aff_studeprofile = 0;
+		foreach ($keys as $k) {
+			$this->db->query(
+				"DELETE FROM studeprofile
+                 WHERE BINARY TRIM(StudentNumber) = BINARY TRIM(?)",
+				[$k]
+			);
+			$aff_studeprofile += (int)$this->db->affected_rows();
+		}
+
+		// (3) Delete from o_users by username OR IDNumber (student accounts only).
+		$aff_ousers = 0;
+		foreach ($keys as $k) {
+			$this->db->query(
+				"DELETE FROM o_users
+                 WHERE (
+                        BINARY TRIM(username) = BINARY TRIM(?)
+                        OR BINARY TRIM(IDNumber) = BINARY TRIM(?)
+                       )
+                   AND position IN ('Student', 'Stude Applicant')",
+				[$k, $k]
+			);
+			$aff_ousers += (int)$this->db->affected_rows();
+		}
+
+		$this->db->trans_complete();
+
+		if ($this->db->trans_status() === false) {
+			$this->session->set_flashdata('danger', "Failed to delete StudentNumber {$studno}.");
+			redirect($ref);
+			return;
+		}
+
+		$total = $aff_studentsignup + $aff_studeprofile + $aff_ousers;
+		if ($total === 0) {
+			$this->session->set_flashdata(
+				'danger',
+				"No matching record found for StudentNumber/username {$studno}."
+			);
+			redirect($ref);
+			return;
+		}
+
+		$this->session->set_flashdata(
+			'success',
+			"Deleted {$studno} (studentsignup: {$aff_studentsignup}, studeprofile: {$aff_studeprofile}, o_users: {$aff_ousers})."
+		);
+		redirect($ref);
+	}
+
 
 
 	function signUpList()

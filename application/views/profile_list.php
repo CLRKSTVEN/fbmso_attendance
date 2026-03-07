@@ -26,19 +26,22 @@
           <div class="row">
             <div class="col-md-12">
               <div class="page-title-box">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                  <div>
-                    <a href="<?= base_url('Page/admin'); ?>" class="btn btn-primary btn-sm">
-                      <i class="mdi mdi-arrow-left"></i> Back to Dashboard
-                    </a>
-                    <a href="<?= site_url('Registration/index') . '?source=admin'; ?>" class="btn btn-success btn-sm">
-                      <i class="mdi mdi-account-plus"></i> Add Student
-                    </a>
-                    <button type="button" class="btn btn-dark btn-sm" onclick="window.print()">
-                      <i class="mdi mdi-printer"></i> Print
-                    </button>
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                      <a href="<?= base_url('Page/admin'); ?>" class="btn btn-primary btn-sm">
+                        <i class="mdi mdi-arrow-left"></i> Back to Dashboard
+                      </a>
+                      <a href="<?= site_url('Registration/index') . '?source=admin'; ?>" class="btn btn-success btn-sm">
+                        <i class="mdi mdi-account-plus"></i> Add Student
+                      </a>
+                      <a href="<?= base_url('Page/duplicateStudentsByName'); ?>" class="btn btn-warning btn-sm">
+                        <i class="mdi mdi-account-multiple"></i> Duplicate Students
+                      </a>
+                      <button type="button" class="btn btn-dark btn-sm" onclick="window.print()">
+                        <i class="mdi mdi-printer"></i> Print
+                      </button>
+                    </div>
                   </div>
-                </div>
                 <hr style="border:0;height:2px;background:linear-gradient(to right,#4285F4 60%,#FBBC05 80%,#34A853 100%);border-radius:1px;margin:20px 0;">
               </div>
             </div>
