@@ -68,6 +68,19 @@
       </div>
     </div>
     <div class="card-body-inner fade-3">
+      <?php
+      $oldInput = $this->session->flashdata('old_input');
+      if (!is_array($oldInput)) {
+        $oldInput = [];
+      }
+      $old = static function ($key, $default = '') use ($oldInput) {
+        return htmlspecialchars((string)($oldInput[$key] ?? $default), ENT_QUOTES, 'UTF-8');
+      };
+      $oldSection   = trim((string)($oldInput['section'] ?? ''));
+      $oldCourse1   = (string)($oldInput['Course1'] ?? '');
+      $oldYearLevel = (string)($oldInput['yearLevel'] ?? '');
+      $oldSex       = (string)($oldInput['Sex'] ?? '');
+      ?>
 
       <?php if ($this->session->flashdata('msg')): ?>
         <div class="flash"><?php echo $this->session->flashdata('msg'); ?></div>
@@ -79,6 +92,7 @@
         data-cities-by-province-url="<?= htmlspecialchars(base_url('Registration/getCitiesByProvince'), ENT_QUOTES, 'UTF-8'); ?>"
         data-barangays-by-city-url="<?= htmlspecialchars(base_url('Registration/getBarangaysByCity'), ENT_QUOTES, 'UTF-8'); ?>"
         data-sections-by-course-year-url="<?= htmlspecialchars(base_url('Registration/getSectionsByCourseYear'), ENT_QUOTES, 'UTF-8'); ?>"
+        data-check-availability-url="<?= htmlspecialchars(base_url('Registration/checkAvailability'), ENT_QUOTES, 'UTF-8'); ?>"
         data-recaptcha-required-message="Please confirm you are not a robot.">
         <?php if (strtolower((string)$this->input->get('source')) === 'admin'): ?>
           <input type="hidden" name="source" value="admin">
@@ -87,15 +101,15 @@
         <input type="hidden" name="nationality" value="Filipino">
         <input type="hidden" name="working" value="No">
         <input type="hidden" name="VaccStat" value="">
-        <input type="hidden" id="resultBday" name="age" readonly required autocomplete="off">
-        <input type="hidden" name="Major1" id="major1">
+        <input type="hidden" id="resultBday" name="age" value="<?= $old('age'); ?>" readonly required autocomplete="off">
+        <input type="hidden" name="Major1" id="major1" value="<?= $old('Major1'); ?>">
         <div class="section-head">
           <div class="section-dot"></div>
           <div class="section-label">Student Credentials</div>
           <div class="section-line"></div>
         </div>
 
-        <div class="row-fields cols-2" style="max-width:520px;">
+        <div class="row-fields cols-3 credentials-row">
           <div class="field-group">
             <label class="field-label" for="StudentNumber">Student ID <span class="req">*</span></label>
             <div class="field-wrap">
@@ -108,9 +122,30 @@
                 maxlength="20"
                 pattern="[A-Za-z0-9\-]+"
                 title="Make sure it matches your school ID."
+                value="<?= $old('StudentNumber'); ?>"
                 required>
             </div>
             <span class="field-hint">This becomes your username — match it to your school ID.</span>
+            <span class="availability-msg" id="student-number-status" aria-live="polite"></span>
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="password">Password <span class="req">*</span></label>
+            <div class="field-wrap password-wrap">
+              <input type="password" id="password" class="field" name="password" minlength="8" autocomplete="new-password" required>
+              <button type="button" class="password-toggle" data-target="#password" aria-label="Show password" title="Show password">
+                <i class="mdi mdi-eye-outline" aria-hidden="true"></i>
+              </button>
+            </div>
+            <span class="field-hint">Use at least 8 characters. You can use this password to log in even if email sending fails.</span>
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="confirm_password">Confirm Password <span class="req">*</span></label>
+            <div class="field-wrap password-wrap">
+              <input type="password" id="confirm_password" class="field" name="confirm_password" minlength="8" autocomplete="new-password" required>
+              <button type="button" class="password-toggle" data-target="#confirm_password" aria-label="Show password" title="Show password">
+                <i class="mdi mdi-eye-outline" aria-hidden="true"></i>
+              </button>
+            </div>
           </div>
         </div>
         <div class="section-head">
@@ -121,19 +156,19 @@
         <div class="row-fields cols-4">
           <div class="field-group">
             <label class="field-label" for="FirstName">First Name <span class="req">*</span></label>
-            <input type="text" id="FirstName" class="field" name="FirstName" style="text-transform:uppercase;" required>
+            <input type="text" id="FirstName" class="field" name="FirstName" value="<?= $old('FirstName'); ?>" style="text-transform:uppercase;" required>
           </div>
           <div class="field-group">
             <label class="field-label" for="MiddleName">Middle Name</label>
-            <input type="text" id="MiddleName" class="field" name="MiddleName" style="text-transform:uppercase;">
+            <input type="text" id="MiddleName" class="field" name="MiddleName" value="<?= $old('MiddleName'); ?>" style="text-transform:uppercase;">
           </div>
           <div class="field-group">
             <label class="field-label" for="LastName">Last Name <span class="req">*</span></label>
-            <input type="text" id="LastName" class="field" name="LastName" style="text-transform:uppercase;" required>
+            <input type="text" id="LastName" class="field" name="LastName" value="<?= $old('LastName'); ?>" style="text-transform:uppercase;" required>
           </div>
           <div class="field-group">
             <label class="field-label" for="nameExtn">Ext.</label>
-            <input type="text" id="nameExtn" class="field" name="nameExtn" placeholder="Jr., Sr." style="text-transform:uppercase;">
+            <input type="text" id="nameExtn" class="field" name="nameExtn" value="<?= $old('nameExtn'); ?>" placeholder="Jr., Sr." style="text-transform:uppercase;">
           </div>
         </div>
         <div class="row-fields cols-4">
@@ -141,22 +176,23 @@
             <label class="field-label" for="Sex">Sex <span class="req">*</span></label>
             <select class="field" id="Sex" name="Sex" required>
               <option value=""></option>
-              <option>Female</option>
-              <option>Male</option>
-              <option>Others</option>
+              <option value="Female" <?= $oldSex === 'Female' ? 'selected' : ''; ?>>Female</option>
+              <option value="Male" <?= $oldSex === 'Male' ? 'selected' : ''; ?>>Male</option>
+              <option value="Others" <?= $oldSex === 'Others' ? 'selected' : ''; ?>>Others</option>
             </select>
           </div>
           <div class="field-group">
             <label class="field-label" for="bday">Date of Birth <span class="req">*</span></label>
-            <input type="date" id="bday" class="field" name="birthDate" required>
+            <input type="date" id="bday" class="field" name="birthDate" value="<?= $old('birthDate'); ?>" required>
           </div>
           <div class="field-group">
             <label class="field-label" for="email">E-mail Address <span class="req">*</span></label>
-            <input type="email" id="email" class="field" name="email" placeholder="you@email.com" required>
+            <input type="email" id="email" class="field" name="email" value="<?= $old('email'); ?>" placeholder="you@email.com" required>
+            <span class="availability-msg" id="email-status" aria-live="polite"></span>
           </div>
           <div class="field-group">
             <label class="field-label" for="contactNo">Mobile No. <span class="req">*</span></label>
-            <input type="text" id="contactNo" class="field" name="contactNo" placeholder="09XX XXX XXXX" required>
+            <input type="text" id="contactNo" class="field" name="contactNo" value="<?= $old('contactNo'); ?>" placeholder="09XX XXX XXXX" required>
           </div>
         </div>
         <div class="section-head">
@@ -171,7 +207,9 @@
             <select name="Course1" id="course1" class="field" required>
               <option value="">Select Course</option>
               <?php foreach ($course as $row) {
-                echo '<option value="' . htmlspecialchars($row->CourseDescription, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($row->CourseDescription, ENT_QUOTES, 'UTF-8') . '</option>';
+                $courseValue = (string)$row->CourseDescription;
+                $selected = ($oldCourse1 === $courseValue) ? ' selected' : '';
+                echo '<option value="' . htmlspecialchars($courseValue, ENT_QUOTES, 'UTF-8') . '"' . $selected . '>' . htmlspecialchars($courseValue, ENT_QUOTES, 'UTF-8') . '</option>';
               } ?>
             </select>
           </div>
@@ -179,16 +217,19 @@
             <label class="field-label" for="yearLevel">Year Level <span class="req">*</span></label>
             <select class="field" name="yearLevel" id="yearLevel" required>
               <option value="">Select Year Level</option>
-              <option value="1st">1st Year</option>
-              <option value="2nd">2nd Year</option>
-              <option value="3rd">3rd Year</option>
-              <option value="4th">4th Year</option>
+              <option value="1st" <?= $oldYearLevel === '1st' ? 'selected' : ''; ?>>1st Year</option>
+              <option value="2nd" <?= $oldYearLevel === '2nd' ? 'selected' : ''; ?>>2nd Year</option>
+              <option value="3rd" <?= $oldYearLevel === '3rd' ? 'selected' : ''; ?>>3rd Year</option>
+              <option value="4th" <?= $oldYearLevel === '4th' ? 'selected' : ''; ?>>4th Year</option>
             </select>
           </div>
           <div class="field-group">
             <label class="field-label" for="section">Section <span class="req">*</span></label>
             <select class="field" name="section" id="section" required>
               <option value="">Select Section</option>
+              <?php if ($oldSection !== ''): ?>
+                <option value="<?= htmlspecialchars($oldSection, ENT_QUOTES, 'UTF-8'); ?>" selected><?= htmlspecialchars($oldSection, ENT_QUOTES, 'UTF-8'); ?></option>
+              <?php endif; ?>
             </select>
           </div>
         </div>

@@ -11,6 +11,7 @@
       citiesByProvinceUrl: data.citiesByProvinceUrl || globalCfg.citiesByProvinceUrl || '',
       barangaysByCityUrl: data.barangaysByCityUrl || globalCfg.barangaysByCityUrl || '',
       sectionsByCourseYearUrl: data.sectionsByCourseYearUrl || globalCfg.sectionsByCourseYearUrl || '',
+      checkAvailabilityUrl: data.checkAvailabilityUrl || globalCfg.checkAvailabilityUrl || '',
       recaptchaRequiredMessage: data.recaptchaRequiredMessage || globalCfg.recaptchaRequiredMessage || ''
     };
   }
@@ -28,6 +29,18 @@
 
   function showError(message) {
     window.alert(message);
+  }
+
+  function debounce(fn, wait) {
+    var t = null;
+    return function() {
+      var args = arguments;
+      var ctx = this;
+      clearTimeout(t);
+      t = setTimeout(function() {
+        fn.apply(ctx, args);
+      }, wait);
+    };
   }
 
   window.submitBday = function submitBday() {
@@ -61,6 +74,7 @@
     }
 
     var sectionsUrl = cfg.sectionsByCourseYearUrl || 'Registration/getSectionsByCourseYear';
+    var currentSection = ($section.val() || '').trim();
 
     postJson(sectionsUrl, {
       course: course,
@@ -68,6 +82,12 @@
     })
       .done(function(html) {
         $section.html(html || '<option value="">Select Section</option>');
+        if (currentSection) {
+          $section.val(currentSection);
+          if ($section.val() !== currentSection) {
+            $section.append('<option value="' + currentSection + '" selected>' + currentSection + '</option>');
+          }
+        }
       })
       .fail(function() {
         showError('Failed to load sections. Please try again.');
@@ -144,6 +164,145 @@
 
     if ($('#course1').length) {
       $('#course1').trigger('change');
+    }
+
+    function updateAvailabilityLabel($label, state, text) {
+      if (!$label || !$label.length) {
+        return;
+      }
+      $label.removeClass('is-ok is-bad is-muted');
+      if (state) {
+        $label.addClass(state);
+      }
+      $label.text(text || '');
+    }
+
+    function parseResponse(payload) {
+      if (typeof payload === 'object' && payload !== null) {
+        return payload;
+      }
+      if (typeof payload === 'string' && payload !== '') {
+        try {
+          return JSON.parse(payload);
+        } catch (e) {
+          return null;
+        }
+      }
+      return null;
+    }
+
+    function checkAvailability(field, rawValue, inputEl, $label) {
+      var value = (rawValue || '').trim();
+      if (!value) {
+        if (inputEl && typeof inputEl.setCustomValidity === 'function') {
+          inputEl.setCustomValidity('');
+        }
+        updateAvailabilityLabel($label, '', '');
+        return;
+      }
+
+      var checkUrl = cfg.checkAvailabilityUrl || 'Registration/checkAvailability';
+      postJson(checkUrl, {
+        field: field,
+        value: value
+      })
+        .done(function(payload) {
+          var data = parseResponse(payload);
+          if (!data || !data.ok) {
+            updateAvailabilityLabel($label, 'is-muted', '');
+            if (inputEl && typeof inputEl.setCustomValidity === 'function') {
+              inputEl.setCustomValidity('');
+            }
+            return;
+          }
+
+          if (data.exists) {
+            updateAvailabilityLabel($label, 'is-bad', data.message || 'Already exists.');
+            if (inputEl && typeof inputEl.setCustomValidity === 'function') {
+              inputEl.setCustomValidity(data.message || 'Already exists.');
+            }
+          } else {
+            updateAvailabilityLabel($label, 'is-ok', data.message || 'Available.');
+            if (inputEl && typeof inputEl.setCustomValidity === 'function') {
+              inputEl.setCustomValidity('');
+            }
+          }
+        })
+        .fail(function() {
+          updateAvailabilityLabel($label, 'is-muted', '');
+          if (inputEl && typeof inputEl.setCustomValidity === 'function') {
+            inputEl.setCustomValidity('');
+          }
+        });
+    }
+
+    var $studentNumber = $('#StudentNumber');
+    var $studentNumberStatus = $('#student-number-status');
+    if ($studentNumber.length) {
+      var runStudentCheck = debounce(function() {
+        var v = ($studentNumber.val() || '').toUpperCase();
+        $studentNumber.val(v);
+        checkAvailability('studentnumber', v, $studentNumber.get(0), $studentNumberStatus);
+      }, 300);
+
+      $studentNumber.on('input blur', runStudentCheck);
+      if (($studentNumber.val() || '').trim() !== '') {
+        runStudentCheck();
+      }
+    }
+
+    var $email = $('#email');
+    var $emailStatus = $('#email-status');
+    if ($email.length) {
+      var runEmailCheck = debounce(function() {
+        checkAvailability('email', ($email.val() || ''), $email.get(0), $emailStatus);
+      }, 300);
+
+      $email.on('input blur', runEmailCheck);
+      if (($email.val() || '').trim() !== '') {
+        runEmailCheck();
+      }
+    }
+
+    var $password = $('#password');
+    var $confirmPassword = $('#confirm_password');
+    $('.password-toggle').on('click', function() {
+      var targetSelector = $(this).data('target');
+      if (!targetSelector) {
+        return;
+      }
+
+      var $target = $(targetSelector);
+      if (!$target.length) {
+        return;
+      }
+
+      var isHidden = ($target.attr('type') || 'password') === 'password';
+      $target.attr('type', isHidden ? 'text' : 'password');
+
+      var $icon = $(this).find('i');
+      if ($icon.length) {
+        $icon.removeClass('mdi-eye-outline mdi-eye-off-outline')
+          .addClass(isHidden ? 'mdi-eye-off-outline' : 'mdi-eye-outline');
+      }
+
+      var nextLabel = isHidden ? 'Hide password' : 'Show password';
+      this.setAttribute('aria-label', nextLabel);
+      this.setAttribute('title', nextLabel);
+    });
+
+    if ($password.length && $confirmPassword.length) {
+      var syncPasswordValidity = function() {
+        var p = $password.val() || '';
+        var c = $confirmPassword.val() || '';
+        if (c && p !== c) {
+          $confirmPassword.get(0).setCustomValidity('Passwords do not match.');
+        } else {
+          $confirmPassword.get(0).setCustomValidity('');
+        }
+      };
+      $password.on('input', syncPasswordValidity);
+      $confirmPassword.on('input', syncPasswordValidity);
     }
 
     var $province = $('#province');

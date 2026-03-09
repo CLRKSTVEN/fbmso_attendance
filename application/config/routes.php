@@ -14,6 +14,7 @@ $route['verify-email'] = 'VerifyEmail/index';
 $route['Registration/getMajorsByCourse'] = 'Registration/getMajorsByCourse';
 $route['Registration/getCitiesByProvince'] = 'Registration/getCitiesByProvince';
 $route['Registration/getBarangaysByCity'] = 'Registration/getBarangaysByCity';
+$route['Registration/checkAvailability'] = 'Registration/checkAvailability';
 $route['Messaging/send'] = 'Messaging/send';
 $route['Messaging/get_conversation'] = 'Messaging/get_conversation';
 $route['dashboard_student'] = 'Announcement/getActiveForStudent';

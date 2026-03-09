@@ -30,16 +30,18 @@ class Registration extends CI_Controller
         ];
         $source = $this->input->get('source', true) ?: $this->input->post('source', true);
         $isAdminFlow = (strtolower((string)$source) === 'admin');
+        $registrationRedirect = $isAdminFlow ? 'Registration/index?source=admin' : 'Registration/index';
         // ----- Handle POST (registration submit) -----
-        if ($this->input->post('register')) {
+        // Handle any POST submission (button name can be omitted when form submits via Enter key).
+        if ($this->input->method(TRUE) === 'POST') {
 
             // 0) reCAPTCHA verify (robust: use cURL)
             $recaptchaResponse = (string)$this->input->post('g-recaptcha-response', true);
             $secretKey         = $this->SettingsModel->getRecaptchaSecretKey();
 
             if ($recaptchaResponse === '') {
-                $this->session->set_flashdata('msg', '<div class="alert alert-danger text-center"><b>Please complete the reCAPTCHA.</b></div>');
-                redirect('Registration/index');
+                $this->flashRegistrationError('<div class="alert alert-danger text-center"><b>Please complete the reCAPTCHA.</b></div>');
+                redirect($registrationRedirect);
                 return;
             }
 
@@ -59,8 +61,8 @@ class Registration extends CI_Controller
 
             $json = @json_decode($verifyResponse, true);
             if (!is_array($json) || empty($json['success'])) {
-                $this->session->set_flashdata('msg', '<div class="alert alert-danger text-center"><b>reCAPTCHA verification failed. Please try again.</b></div>');
-                redirect('Registration/index');
+                $this->flashRegistrationError('<div class="alert alert-danger text-center"><b>reCAPTCHA verification failed. Please try again.</b></div>');
+                redirect($registrationRedirect);
                 return;
             }
 
@@ -69,11 +71,8 @@ class Registration extends CI_Controller
             $yearLevelNormalized = preg_replace('/\s*Year$/i', '', $yearLevelInput); // allow "1st Year"
             $validLevels         = ['1st', '2nd', '3rd', '4th'];
             if (!in_array($yearLevelNormalized, $validLevels, true)) {
-                $this->session->set_flashdata(
-                    'msg',
-                    '<div class="alert alert-danger text-center"><b>Please select a valid Year Level.</b></div>'
-                );
-                redirect('Registration/index');
+                $this->flashRegistrationError('<div class="alert alert-danger text-center"><b>Please select a valid Year Level.</b></div>');
+                redirect($registrationRedirect);
                 return;
             }
 
@@ -105,22 +104,56 @@ class Registration extends CI_Controller
                 // system-controlled
                 'EnrollmentDate'   => date('Y-m-d'),
             ];
+            // studentsignup has many legacy NOT NULL columns that are not in the simplified public form.
+            // Provide safe defaults so account creation can complete without DB constraint errors.
+            $studentData = array_merge([
+                'BirthPlace'           => '',
+                'CivilStatus'          => 'Single',
+                'Religion'             => '',
+                'province'             => '',
+                'city'                 => '',
+                'brgy'                 => '',
+                'sitio'                => '',
+                'Course2'              => '',
+                'Course3'              => '',
+                'Major2'               => '',
+                'Major3'               => '',
+                'Status'               => 'Pending',
+                'graduationDate'       => '',
+                'guardian'             => '',
+                'guardianRelationship' => '',
+                'guardianContact'      => '',
+                'guardianAddress'      => '',
+                'father'               => '',
+                'fOccupation'          => '',
+                'fatherAddress'        => '',
+                'fatherContact'        => '',
+                'mother'               => '',
+                'mOccupation'          => '',
+                'motherAddress'        => '',
+                'motherContact'        => '',
+            ], $studentData);
             // Normalize and validate StudentNumber (username)
             $studentData['StudentNumber'] = strtoupper(trim((string)$studentData['StudentNumber']));
+            // Ensure age is always a numeric value even if JS didn't populate the hidden field.
+            $age = (int)$studentData['age'];
+            if ($age <= 0) {
+                $dob = DateTime::createFromFormat('Y-m-d', (string)$studentData['birthDate']);
+                if ($dob instanceof DateTime) {
+                    $today = new DateTime('today');
+                    $age   = (int)$dob->diff($today)->y;
+                }
+            }
+            $studentData['age'] = max(0, $age);
+
             if ($studentData['StudentNumber'] === '') {
-                $this->session->set_flashdata(
-                    'msg',
-                    '<div class="alert alert-danger text-center"><b>Please enter a Student ID/Number. This will be used as your username.</b></div>'
-                );
-                redirect('Registration/index');
+                $this->flashRegistrationError('<div class="alert alert-danger text-center"><b>Please enter a Student ID/Number. This will be used as your username.</b></div>');
+                redirect($registrationRedirect);
                 return;
             }
             if (!preg_match('/^[A-Z0-9\-]+$/', $studentData['StudentNumber'])) {
-                $this->session->set_flashdata(
-                    'msg',
-                    '<div class="alert alert-danger text-center"><b>Student ID may only contain letters, numbers, and hyphen.</b></div>'
-                );
-                redirect('Registration/index');
+                $this->flashRegistrationError('<div class="alert alert-danger text-center"><b>Student ID may only contain letters, numbers, and hyphen.</b></div>');
+                redirect($registrationRedirect);
                 return;
             }
 
@@ -131,21 +164,49 @@ class Registration extends CI_Controller
             $firstName     = (string)$studentData['FirstName'];
             $middleName    = (string)$studentData['MiddleName'];
             $lastName      = (string)$studentData['LastName'];
+            $fullName      = trim($firstName . ' ' . $middleName . ' ' . $lastName);
+            $passwordRaw   = (string)$this->input->post('password');
+            $confirmPass   = (string)$this->input->post('confirm_password');
 
-            // 2) Duplicate check against o_users by email OR username (StudentNumber)
-            $isDup = $this->db
-                ->group_start()
-                ->where('email', $email)
-                ->or_where('username', $studentNumber)
-                ->group_end()
-                ->count_all_results('o_users') > 0;
+            $passwordRaw = str_replace(["\xc2\xa0", "\xe2\x80\x8b"], ' ', $passwordRaw);
+            $confirmPass = str_replace(["\xc2\xa0", "\xe2\x80\x8b"], ' ', $confirmPass);
+            $passwordRaw = preg_replace('/^\s+|\s+$/u', '', $passwordRaw);
+            $confirmPass = preg_replace('/^\s+|\s+$/u', '', $confirmPass);
 
-            if ($isDup) {
-                $this->session->set_flashdata(
-                    'msg',
-                    '<div class="alert alert-danger text-center"><b>Email or Student Number already exists.</b></div>'
-                );
-                redirect('Registration/index');
+            if ($passwordRaw === '') {
+                $this->flashRegistrationError('<div class="alert alert-danger text-center"><b>Please enter a password.</b></div>');
+                redirect($registrationRedirect);
+                return;
+            }
+            if (strlen($passwordRaw) < 8) {
+                $this->flashRegistrationError('<div class="alert alert-danger text-center"><b>Password must be at least 8 characters.</b></div>');
+                redirect($registrationRedirect);
+                return;
+            }
+            if ($passwordRaw !== $confirmPass) {
+                $this->flashRegistrationError('<div class="alert alert-danger text-center"><b>Passwords do not match.</b></div>');
+                redirect($registrationRedirect);
+                return;
+            }
+
+            // 2) Duplicate checks across both login/accounts and signup staging tables.
+            $studentIdExists = (
+                $this->db->where('username', $studentNumber)->count_all_results('o_users') > 0
+            ) || (
+                $this->db->where('StudentNumber', $studentNumber)->count_all_results('studentsignup') > 0
+            );
+            $emailExists = (
+                $this->db->where('email', $email)->count_all_results('o_users') > 0
+            ) || (
+                $this->db->where('email', $email)->count_all_results('studentsignup') > 0
+            );
+
+            if ($studentIdExists || $emailExists) {
+                $parts = [];
+                if ($studentIdExists) $parts[] = 'Student ID already exists.';
+                if ($emailExists) $parts[] = 'Email already exists.';
+                $this->flashRegistrationError('<div class="alert alert-danger text-center"><b>' . implode(' ', $parts) . '</b></div>');
+                redirect($registrationRedirect);
                 return;
             }
 
@@ -156,8 +217,7 @@ class Registration extends CI_Controller
             $studentData['StudentNumber'] = $studentNumber;
             $this->db->insert('studentsignup', $studentData);
 
-            // Legacy o_users uses sha1 password; original used birthDate as password
-            $passwordRaw  = $studentData['birthDate'];
+            // Login flow expects SHA-1 hash in o_users.password.
             $passwordHash = sha1($passwordRaw);
 
             $this->db->insert('o_users', [
@@ -166,6 +226,7 @@ class Registration extends CI_Controller
                 'fName'      => $firstName,
                 'mName'      => $middleName,
                 'lName'      => $lastName,
+                'name'       => $fullName,
                 'password'   => $passwordHash,
                 'position'   => 'Student',
                 'email'      => $email,
@@ -175,8 +236,14 @@ class Registration extends CI_Controller
 
             $this->db->trans_complete();
             if (!$this->db->trans_status()) {
-                $this->session->set_flashdata('msg', '<div class="alert alert-danger text-center"><b>Unexpected error. Please try again.</b></div>');
-                redirect('Registration/index');
+                $dbError = $this->db->error();
+                log_message('error', 'Registration transaction failed: ' . json_encode($dbError));
+                $errorDetail = '';
+                if (!empty($dbError['message'])) {
+                    $errorDetail = '<br><small>' . htmlspecialchars((string)$dbError['message'], ENT_QUOTES, 'UTF-8') . '</small>';
+                }
+                $this->flashRegistrationError('<div class="alert alert-danger text-center"><b>Unexpected error. Please try again.</b>' . $errorDetail . '</div>');
+                redirect($registrationRedirect);
                 return;
             }
 
@@ -296,7 +363,7 @@ class Registration extends CI_Controller
                     // Public signup → go to login with an INFO SweetAlert
                     $this->session->set_flashdata(
                         'info_message',
-                        'Registration saved, but email could not be sent. Please contact the registrar.'
+                        'Registration saved, but email could not be sent. You can log in using your Student ID and password.'
                     );
                     return redirect('login');
                 }
@@ -368,6 +435,50 @@ class Registration extends CI_Controller
             $options .= '<option value="' . html_escape($row->Brgy) . '">' . html_escape($row->Brgy) . '</option>';
         }
         echo $options;
+    }
+
+    public function checkAvailability()
+    {
+        $field = strtolower(trim((string)$this->input->post('field', true)));
+        $value = trim((string)$this->input->post('value', true));
+
+        $response = [
+            'ok'      => true,
+            'field'   => $field,
+            'exists'  => false,
+            'message' => ''
+        ];
+
+        if ($field === 'studentnumber' || $field === 'student_id' || $field === 'student') {
+            $studentNumber = strtoupper($value);
+            if ($studentNumber !== '') {
+                $exists = (
+                    $this->db->where('username', $studentNumber)->count_all_results('o_users') > 0
+                ) || (
+                    $this->db->where('StudentNumber', $studentNumber)->count_all_results('studentsignup') > 0
+                );
+                $response['exists'] = $exists;
+                $response['message'] = $exists ? 'Student ID already exists.' : 'Student ID is available.';
+            }
+        } elseif ($field === 'email') {
+            $email = trim($value);
+            if ($email !== '') {
+                $exists = (
+                    $this->db->where('email', $email)->count_all_results('o_users') > 0
+                ) || (
+                    $this->db->where('email', $email)->count_all_results('studentsignup') > 0
+                );
+                $response['exists'] = $exists;
+                $response['message'] = $exists ? 'Email already exists.' : 'Email is available.';
+            }
+        } else {
+            $response['ok'] = false;
+            $response['message'] = 'Unsupported field.';
+        }
+
+        $this->output
+            ->set_content_type('application/json')
+            ->set_output(json_encode($response));
     }
     public function create()
     {
@@ -497,5 +608,17 @@ class Registration extends CI_Controller
         }
 
         $this->output->set_content_type('text/html')->set_output($options);
+    }
+
+    private function flashRegistrationError($messageHtml)
+    {
+        $oldInput = $this->input->post(NULL, true);
+        if (!is_array($oldInput)) {
+            $oldInput = [];
+        }
+        unset($oldInput['g-recaptcha-response'], $oldInput['password'], $oldInput['confirm_password']);
+
+        $this->session->set_flashdata('old_input', $oldInput);
+        $this->session->set_flashdata('msg', $messageHtml);
     }
 }
