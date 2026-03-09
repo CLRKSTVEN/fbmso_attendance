@@ -136,7 +136,7 @@
                 <i class="mdi mdi-eye-outline" aria-hidden="true"></i>
               </button>
             </div>
-            <span class="field-hint">Use at least 8 characters. You can use this password to log in even if email sending fails.</span>
+            <span class="field-hint">Use at least 8 characters.</span>
           </div>
           <div class="field-group">
             <label class="field-label" for="confirm_password">Confirm Password <span class="req">*</span></label>
