@@ -40,8 +40,15 @@ $showOnline = (int)($online_settings->show_online_payments ?? 1);
 
                     <li class="<?= $isActive('Settings/schoolInfo'); ?>">
                         <a href="<?= base_url('Settings/schoolInfo?panel=mass_email'); ?>" class="waves-effect">
-                            <i class="mdi mdi-email-cog-outline"></i>
+                            <i class="mdi mdi-email-outline"></i>
                             <span> Mass Email Setup </span>
+                        </a>
+                    </li>
+
+                    <li class="<?= $isActive('mass-announcement'); ?>">
+                        <a href="<?= base_url('mass-announcement'); ?>" class="waves-effect">
+                            <i class="mdi mdi-bullhorn-outline"></i>
+                            <span> Mass Announcement </span>
                         </a>
                     </li>
 
@@ -182,6 +189,12 @@ $showOnline = (int)($online_settings->show_online_payments ?? 1);
                         <a href="<?= base_url(); ?>Page/announcement?id=<?php echo $this->session->userdata('username'); ?>" class="waves-effect">
                             <i class="bi bi-megaphone"></i>
                             <span> Announcement </span>
+                        </a>
+                    </li>
+                    <li class="<?= (stripos($currentUri, 'mass-announcement') === 0 ? 'mm-active active' : ''); ?>">
+                        <a href="<?= base_url('mass-announcement'); ?>" class="waves-effect">
+                            <i class="mdi mdi-bullhorn-outline"></i>
+                            <span> Mass Announcement </span>
                         </a>
                     </li>
                     <li>
