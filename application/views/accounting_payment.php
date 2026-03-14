@@ -12,6 +12,7 @@
                 <div class="container-fluid">
                     <?php
                     $flashSuccess = $this->session->flashdata('success');
+                    $flashWarning = $this->session->flashdata('warning');
                     $flashDanger  = $this->session->flashdata('danger');
                     $paymentFormOld = isset($payment_form_old) && is_array($payment_form_old) ? $payment_form_old : [];
                     $openPaymentModal = !empty($open_payment_modal);
@@ -40,6 +41,9 @@
 
                     <?php if (!empty($flashSuccess)): ?>
                         <div class="alert alert-success" role="alert"><?= htmlspecialchars($flashSuccess, ENT_QUOTES, 'UTF-8'); ?></div>
+                    <?php endif; ?>
+                    <?php if (!empty($flashWarning)): ?>
+                        <div class="alert alert-warning" role="alert"><?= htmlspecialchars($flashWarning, ENT_QUOTES, 'UTF-8'); ?></div>
                     <?php endif; ?>
                     <?php if (!empty($flashDanger)): ?>
                         <div class="alert alert-danger" role="alert"><?= htmlspecialchars($flashDanger, ENT_QUOTES, 'UTF-8'); ?></div>
@@ -160,6 +164,7 @@
                     <div class="modal-body">
                         <input type="hidden" name="Sem" value="<?= htmlspecialchars((string)$semester, ENT_QUOTES, 'UTF-8'); ?>">
                         <input type="hidden" name="SY" value="<?= htmlspecialchars((string)$sy, ENT_QUOTES, 'UTF-8'); ?>">
+                        <input type="hidden" name="payment_submit_token" value="<?= htmlspecialchars((string)($payment_submit_token ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
 
                         <!-- keep description for controller, but hidden -->
                         <input type="hidden" name="description" id="descriptionHidden" value="">
@@ -236,7 +241,7 @@
                         <button type="button" class="btn btn-light" data-dismiss="modal">
                             <i class="mdi mdi-close"></i> Close
                         </button>
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="btn btn-primary" id="paymentSubmitBtn">
                             <i class="mdi mdi-content-save"></i> Save Payment
                         </button>
                     </div>
@@ -424,6 +429,7 @@
             var orCheckTimer = null;
             var orCheckRequest = null;
             var paymentFormSubmitting = false;
+            var paymentSubmitDefaultHtml = '';
 
             function initTooltips() {
                 if ($.fn.tooltip) {
@@ -473,6 +479,24 @@
                         initDescSelect($('#editDescriptionField'), [], $('#editPaymentModal'));
                         return [];
                     });
+            }
+
+            function setPaymentSubmitState(isSubmitting) {
+                var $submitBtn = $('#paymentSubmitBtn');
+                if (!$submitBtn.length) {
+                    return;
+                }
+
+                if (paymentSubmitDefaultHtml === '') {
+                    paymentSubmitDefaultHtml = $submitBtn.html();
+                }
+
+                if (isSubmitting) {
+                    $submitBtn.prop('disabled', true).html('<i class="mdi mdi-loading mdi-spin"></i> Saving...');
+                    return;
+                }
+
+                $submitBtn.prop('disabled', false).html(paymentSubmitDefaultHtml);
             }
 
             function applyDescriptionSelection($select, $hidden, $amount, $warn) {
@@ -690,6 +714,7 @@
                 }
 
                 paymentFormSubmitting = false;
+                setPaymentSubmitState(false);
                 lastSuggestedOrNumber = defaultOrNumber;
                 orNumberEditedManually = false;
                 setOrNumberStatus('neutral', defaultOrHelp);
@@ -717,6 +742,7 @@
                 $('#amount').val($.trim(state.Amount || ''));
 
                 paymentFormSubmitting = false;
+                setPaymentSubmitState(false);
                 lastSuggestedOrNumber = defaultOrNumber;
                 orNumberEditedManually = restoredOrNumber !== '' && restoredOrNumber !== defaultOrNumber;
                 setOrNumberStatus('neutral', defaultOrHelp);
@@ -739,6 +765,7 @@
 
                 // tooltips first run
                 initTooltips();
+                setPaymentSubmitState(false);
 
                 // DELETE confirm
                 $(document).on('submit', '.delete-payment-form', function(e) {
@@ -832,6 +859,7 @@
                     var $form = $(this);
 
                     if (paymentFormSubmitting) {
+                        e.preventDefault();
                         return;
                     }
 
@@ -841,15 +869,17 @@
                     }
 
                     e.preventDefault();
+                    paymentFormSubmitting = true;
+                    setPaymentSubmitState(true);
                     validateOrNumber({
                         normalizeField: true
                     }).done(function(isValid) {
                         if (!isValid) {
                             paymentFormSubmitting = false;
+                            setPaymentSubmitState(false);
                             return;
                         }
 
-                        paymentFormSubmitting = true;
                         $form[0].submit();
                     });
                 });

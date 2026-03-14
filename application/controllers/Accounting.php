@@ -196,6 +196,43 @@ class Accounting extends CI_Controller
 		return array_merge($state, $overrides);
 	}
 
+	private function generatePaymentSubmitToken()
+	{
+		try {
+			$token = bin2hex(random_bytes(16));
+		} catch (Exception $e) {
+			$token = sha1(uniqid('payment', true) . mt_rand());
+		}
+
+		$tokens = (array)$this->session->userdata('payment_submit_tokens');
+		$tokens[$token] = time();
+
+		if (count($tokens) > 20) {
+			asort($tokens);
+			$tokens = array_slice($tokens, -20, null, true);
+		}
+
+		$this->session->set_userdata('payment_submit_tokens', $tokens);
+		return $token;
+	}
+
+	private function consumePaymentSubmitToken($token)
+	{
+		$token = trim((string)$token);
+		if ($token === '') {
+			return false;
+		}
+
+		$tokens = (array)$this->session->userdata('payment_submit_tokens');
+		if (!isset($tokens[$token])) {
+			return false;
+		}
+
+		unset($tokens[$token]);
+		$this->session->set_userdata('payment_submit_tokens', $tokens);
+		return true;
+	}
+
 	private function isDuplicateDbError($dbError)
 	{
 		$code = (int)($dbError['code'] ?? 0);
@@ -538,6 +575,7 @@ class Accounting extends CI_Controller
 	private function getRecentPayments($sem, $sy, $limit = 80)
 	{
 		$this->db->select("p.ID, p.PDate, p.ORNumber, p.StudentNumber, p.Amount, p.description, p.PaymentType, p.Cashier,
+			COALESCE(NULLIF(TRIM(sp.email),''), NULLIF(TRIM(su.email),'')) AS Email,
 			COALESCE(NULLIF(sp.LastName,''), su.LastName, '') AS LastName,
 			COALESCE(NULLIF(sp.FirstName,''), su.FirstName, '') AS FirstName,
 			COALESCE(NULLIF(sp.MiddleName,''), su.MiddleName, '') AS MiddleName", false);
@@ -561,6 +599,7 @@ class Accounting extends CI_Controller
 	private function getPaymentById($id)
 	{
 		$this->db->select("p.*, 
+			COALESCE(NULLIF(TRIM(sp.email),''), NULLIF(TRIM(su.email),'')) AS Email,
 			COALESCE(NULLIF(sp.LastName,''), su.LastName, '') AS LastName,
 			COALESCE(NULLIF(sp.FirstName,''), su.FirstName, '') AS FirstName,
 			COALESCE(NULLIF(sp.MiddleName,''), su.MiddleName, '') AS MiddleName", false);
@@ -570,6 +609,108 @@ class Accounting extends CI_Controller
 		$this->db->where('p.ID', (int)$id);
 		$this->db->limit(1);
 		return $this->db->get()->row();
+	}
+
+	private function getReceiptSettings()
+	{
+		return $this->db->select('SchoolName, SchoolAddress, telNo, cashier, cashierPosition, letterhead_web')
+			->from('o_srms_settings')
+			->limit(1)
+			->get()
+			->row();
+	}
+
+	private function paymentEmailConfig()
+	{
+		$this->load->config('email');
+
+		return [
+			'protocol' => (string)$this->config->item('protocol'),
+			'smtp_host' => (string)$this->config->item('smtp_host'),
+			'smtp_user' => (string)$this->config->item('smtp_user'),
+			'smtp_pass' => (string)$this->config->item('smtp_pass'),
+			'smtp_port' => (int)$this->config->item('smtp_port'),
+			'smtp_crypto' => (string)$this->config->item('smtp_crypto'),
+			'smtp_timeout' => (int)$this->config->item('smtp_timeout'),
+			'mailtype' => (string)$this->config->item('mailtype'),
+			'charset' => (string)$this->config->item('charset'),
+			'newline' => (string)$this->config->item('newline'),
+			'crlf' => (string)$this->config->item('crlf'),
+			'wordwrap' => (bool)$this->config->item('wordwrap'),
+		];
+	}
+
+	private function buildReceiptEmailHtml($payment, $settings)
+	{
+		return $this->load->view('accounting_receipt_email', [
+			'payment' => $payment,
+			'settings' => $settings,
+		], true);
+	}
+
+	private function sendReceiptEmailForPayment($payment, $settings = null)
+	{
+		$recipientEmail = trim((string)($payment->Email ?? ''));
+		if ($recipientEmail === '' || !filter_var($recipientEmail, FILTER_VALIDATE_EMAIL)) {
+			return [
+				'attempted' => false,
+				'sent' => false,
+				'email' => '',
+				'message' => 'No valid student email address was found for this receipt.',
+			];
+		}
+
+		if ($settings === null) {
+			$settings = $this->getReceiptSettings();
+		}
+
+		$schoolName = trim((string)($settings->SchoolName ?? 'School Records Management System'));
+		$subject = 'Official Receipt #' . trim((string)($payment->ORNumber ?? '')) . ' - ' . $schoolName;
+		$message = $this->buildReceiptEmailHtml($payment, $settings);
+		$emailConfig = $this->paymentEmailConfig();
+
+		$this->load->library('email');
+		$this->email->clear(true);
+		$this->email->initialize($emailConfig);
+		if (method_exists($this->email, 'set_mailtype')) {
+			$this->email->set_mailtype('html');
+		}
+		if (method_exists($this->email, 'set_newline')) {
+			$this->email->set_newline((string)($emailConfig['newline'] ?? "\r\n"));
+		}
+		if (method_exists($this->email, 'set_crlf')) {
+			$this->email->set_crlf((string)($emailConfig['crlf'] ?? "\r\n"));
+		}
+
+		$fromEmail = trim((string)($emailConfig['smtp_user'] ?? ''));
+		if ($fromEmail === '' || !filter_var($fromEmail, FILTER_VALIDATE_EMAIL)) {
+			$fromEmail = 'no-reply@localhost';
+		}
+
+		$this->email->from($fromEmail, $schoolName);
+		$this->email->to($recipientEmail);
+		$this->email->subject($subject);
+		$this->email->message($message);
+
+		$sent = $this->email->send(false);
+		if (!$sent) {
+			$debug = trim(strip_tags($this->email->print_debugger(['headers', 'subject'])));
+			log_message('error', 'Receipt email send failed for payment ID ' . (int)($payment->ID ?? 0) . ': ' . $debug);
+
+			return [
+				'attempted' => true,
+				'sent' => false,
+				'email' => $recipientEmail,
+				'message' => 'Receipt email could not be sent. Please check the mail configuration.',
+			];
+		}
+
+		return [
+			'attempted' => true,
+			'sent' => true,
+			'email' => $recipientEmail,
+			'message' => 'Receipt emailed to ' . $recipientEmail . '.',
+		];
 	}
 
 	private function collectionRows($from, $to)
@@ -647,6 +788,13 @@ class Accounting extends CI_Controller
 		[$sem, $sy] = $this->currentSemSy();
 
 		if (strtoupper((string)$this->input->method()) === 'POST') {
+			$submitToken = trim((string)$this->input->post('payment_submit_token', true));
+			if (!$this->consumePaymentSubmitToken($submitToken)) {
+				$this->session->set_flashdata('danger', 'This payment form was already submitted or expired. Please try again.');
+				redirect('Accounting/Payment');
+				return;
+			}
+
 			$this->form_validation->set_rules('StudentNumber', 'Student', 'required|trim');
 			$this->form_validation->set_rules('description', 'Description', 'required|trim');
 			$this->form_validation->set_rules('Amount', 'Amount', 'required|numeric|greater_than[0]');
@@ -785,7 +933,24 @@ class Accounting extends CI_Controller
 
 			$this->db->trans_commit();
 
-			$this->session->set_flashdata('success', 'Payment saved successfully. O.R. #' . $orNumber);
+			$receiptSettings = $this->getReceiptSettings();
+			$savedPayment = $this->getPaymentById((int)$paymentData['ID']);
+			$emailResult = $savedPayment ? $this->sendReceiptEmailForPayment($savedPayment, $receiptSettings) : [
+				'attempted' => false,
+				'sent' => false,
+				'email' => '',
+				'message' => 'Payment was saved, but the receipt email could not be prepared.',
+			];
+
+			$successMessage = 'Payment saved successfully. O.R. #' . $orNumber . '.';
+			if (!empty($emailResult['attempted']) && !empty($emailResult['sent'])) {
+				$successMessage .= ' Receipt emailed to ' . $emailResult['email'] . '.';
+				$this->session->set_flashdata('success', $successMessage);
+			} else {
+				$this->session->set_flashdata('success', $successMessage);
+				$this->session->set_flashdata('warning', (string)$emailResult['message']);
+			}
+
 			redirect('Accounting/Payment');
 			return;
 		}
@@ -812,6 +977,7 @@ class Accounting extends CI_Controller
 			'fee_templates'        => $this->getFeeTemplates(),
 			'settings'             => $settings,
 			'payment_form_old'     => $oldPaymentForm,
+			'payment_submit_token' => $this->generatePaymentSubmitToken(),
 			'open_payment_modal'   => !empty($oldPaymentForm),
 		];
 
@@ -874,11 +1040,7 @@ class Accounting extends CI_Controller
 			return;
 		}
 
-		$settings = $this->db->select('SchoolName, SchoolAddress, telNo, cashier, cashierPosition, letterhead_web')
-			->from('o_srms_settings')
-			->limit(1)
-			->get()
-			->row();
+		$settings = $this->getReceiptSettings();
 
 		$data = [
 			'payment'    => $payment,
@@ -887,6 +1049,38 @@ class Accounting extends CI_Controller
 		];
 
 		$this->load->view('accounting_receipt', $data);
+	}
+
+	public function emailReceipt()
+	{
+		$this->ensureAccess();
+
+		if (strtoupper((string)$this->input->method()) !== 'POST') {
+			show_error('Invalid request method', 405);
+			return;
+		}
+
+		$paymentId = (int)$this->input->post('id', true);
+		if ($paymentId <= 0) {
+			$this->session->set_flashdata('danger', 'Invalid receipt email request.');
+			redirect('Accounting/Payment');
+			return;
+		}
+
+		$payment = $this->getPaymentById($paymentId);
+		if (!$payment) {
+			$this->session->set_flashdata('danger', 'Payment not found.');
+			redirect('Accounting/Payment');
+			return;
+		}
+
+		$result = $this->sendReceiptEmailForPayment($payment, $this->getReceiptSettings());
+		if (!empty($result['sent'])) {
+			$this->session->set_flashdata('success', (string)$result['message']);
+		} else {
+			$this->session->set_flashdata('danger', (string)$result['message']);
+		}
+		redirect('Accounting/Payment');
 	}
 
 	public function ajaxMajors()
@@ -1020,13 +1214,22 @@ class Accounting extends CI_Controller
 			$total += (float)$row->Amount;
 		}
 
+		$settings = $this->getReceiptSettings();
+		$reportPeriod = $from === $to
+			? date('F d, Y', strtotime($from))
+			: date('F d, Y', strtotime($from)) . ' to ' . date('F d, Y', strtotime($to));
+		$generatedAt = (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('F d, Y h:i A');
+
 		$data = [
-			'report_title' => $title,
-			'from'         => $from,
-			'to'           => $to,
-			'rows'         => $rows,
-			'total_amount' => $total,
-			'total_count'  => count($rows),
+			'report_title'   => $title,
+			'report_period'  => $reportPeriod,
+			'generated_at'   => $generatedAt,
+			'from'           => $from,
+			'to'             => $to,
+			'rows'           => $rows,
+			'total_amount'   => $total,
+			'total_count'    => count($rows),
+			'settings'       => $settings,
 		];
 
 		$this->load->view('accounting_collection_report', $data);
