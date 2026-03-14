@@ -384,7 +384,28 @@ class Settings extends CI_Controller
 			$this->session->set_flashdata('msg', '<div class="alert alert-success text-center"><b>Updated successfully.</b></div>');
 			redirect('Settings/schoolInfo');
 		} else {
+			$massEmailSettings = $this->SettingsModel->getMassAnnouncementEmailSettings();
+			$massEmailSettings = $massEmailSettings ? (array) $massEmailSettings : [];
+			$oldMassEmailSettings = $this->session->flashdata('mass_email_settings_old');
+
+			if (is_array($oldMassEmailSettings) && !empty($oldMassEmailSettings)) {
+				$massEmailSettings = array_merge($massEmailSettings, $oldMassEmailSettings);
+			}
+
+			$openPanel = trim((string) $this->input->get('panel', true));
+			if ($openPanel === '') {
+				$openPanel = trim((string) $this->session->flashdata('open_panel'));
+			}
+
+			$canManageMassEmail = ($this->session->userdata('level') === 'Super Admin');
+			if ($canManageMassEmail && $openPanel === '') {
+				$openPanel = 'mass_email';
+			}
+
 			$result['data'] = $this->SettingsModel->getSchoolInfo();
+			$result['mass_email_settings'] = $massEmailSettings;
+			$result['open_panel'] = $openPanel;
+			$result['can_manage_mass_email'] = $canManageMassEmail;
 			$this->load->view('settings_school_info', $result);
 		}
 	}

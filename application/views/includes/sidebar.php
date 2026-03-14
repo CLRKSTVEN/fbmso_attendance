@@ -20,8 +20,63 @@ $showOnline = (int)($online_settings->show_online_payments ?? 1);
 
 <div class="left-side-menu">
     <div class="slimscroll-menu">
+        <?php if ($this->session->userdata('level') === 'Super Admin'): ?>
+            <?php
+            $currentUri = trim(uri_string(), '/');
+            $isActive = static function ($prefix) use ($currentUri) {
+                return stripos($currentUri, trim($prefix, '/')) === 0 ? 'mm-active active' : '';
+            };
+            ?>
+            <div id="sidebar-menu">
+                <ul class="metismenu" id="side-menu">
+                    <li class="menu-title">SUPER ADMIN</li>
+
+                    <li class="<?= $isActive('Page/superAdmin'); ?>">
+                        <a href="<?= base_url('Page/superAdmin'); ?>" class="waves-effect">
+                            <i class="mdi mdi-view-dashboard-outline"></i>
+                            <span> Dashboard </span>
+                        </a>
+                    </li>
+
+                    <li class="<?= $isActive('Settings/schoolInfo'); ?>">
+                        <a href="<?= base_url('Settings/schoolInfo?panel=mass_email'); ?>" class="waves-effect">
+                            <i class="mdi mdi-email-cog-outline"></i>
+                            <span> Mass Email Setup </span>
+                        </a>
+                    </li>
+
+                    <li class="<?= $isActive('Page/announcement'); ?>">
+                        <a href="<?= base_url('Page/announcement?id=' . urlencode((string)$this->session->userdata('username'))); ?>" class="waves-effect">
+                            <i class="bi bi-megaphone"></i>
+                            <span> Announcement </span>
+                        </a>
+                    </li>
+
+                    <li class="<?= $isActive('Page/changeDP'); ?>">
+                        <a href="<?= base_url('Page/changeDP?id=' . urlencode((string)$this->session->userdata('username'))); ?>" class="waves-effect">
+                            <i class="mdi mdi-account-circle-outline"></i>
+                            <span> Change Profile Picture </span>
+                        </a>
+                    </li>
+
+                    <li class="<?= $isActive('Page/changepassword'); ?>">
+                        <a href="<?= base_url('Page/changepassword'); ?>" class="waves-effect">
+                            <i class="ion bi bi-shield-lock"></i>
+                            <span> Change Password </span>
+                        </a>
+                    </li>
+
+                    <li>
+                        <a href="<?= base_url('Login/logout'); ?>" class="waves-effect logout-confirm">
+                            <i class="ion bi bi-box-arrow-right"></i>
+                            <span> Logout </span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
         <!-- System Administrator -->
-        <?php if ($this->session->userdata('level') === 'Admin'): ?>
+        <?php elseif ($this->session->userdata('level') === 'Admin'): ?>
             <?php
             $currentUri = trim(uri_string(), '/');
             $segment1   = strtolower($this->uri->segment(1) ?? '');

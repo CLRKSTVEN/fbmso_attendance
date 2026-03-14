@@ -7,6 +7,24 @@ class SettingsModel extends CI_Model
         return $this->db->get('o_srms_settings')->row();
     }
 
+    public function getMassAnnouncementEmailSettings()
+    {
+        return $this->db->order_by('id', 'ASC')
+            ->limit(1)
+            ->get('mass_announcement_email_settings')
+            ->row();
+    }
+
+    public function saveMassAnnouncementEmailSettings(array $data, $id = null)
+    {
+        if ($id) {
+            return $this->db->where('id', (int)$id)
+                ->update('mass_announcement_email_settings', $data);
+        }
+
+        return $this->db->insert('mass_announcement_email_settings', $data);
+    }
+
 
     public function getSchoolName()
     {
@@ -728,8 +746,10 @@ public function getSectionsByCourseAndMajor($course, $major)
 
     function getSchoolInformation()
     {
-        $query = $this->db->query("select * from srms_settings");
-        return $query->result();
+        return $this->db
+            ->limit(1)
+            ->get('o_srms_settings')
+            ->result();
     }
 
 

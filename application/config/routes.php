@@ -17,6 +17,7 @@ $route['Registration/getBarangaysByCity'] = 'Registration/getBarangaysByCity';
 $route['Registration/checkAvailability'] = 'Registration/checkAvailability';
 $route['Messaging/send'] = 'Messaging/send';
 $route['Messaging/get_conversation'] = 'Messaging/get_conversation';
+$route['mass-announcement/settings'] = 'MassAnnouncement/settings';
 $route['dashboard_student'] = 'Announcement/getActiveForStudent';
 $route['Page/verifyOnlinePayment/(:num)'] = 'Page/verifyOnlinePayment/$1';
 $route['student/soa'] = 'Page/soa_college';
