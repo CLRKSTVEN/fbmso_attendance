@@ -117,6 +117,7 @@
       $forgotEmail = (string)($this->session->flashdata('forgot_email') ?: '');
       $forgotIdentifier = (string)($this->session->flashdata('forgot_identifier') ?: '');
       $forgotAccountVerified = (bool)$this->session->flashdata('forgot_account_verified');
+      $forgotManualMode = (bool)$this->session->flashdata('forgot_manual_mode');
       ?>
       <?php if (!empty($loginErrorText)): ?>
         <div class="flash" id="login-error-message"><?= htmlspecialchars($loginErrorText, ENT_QUOTES, 'UTF-8'); ?></div>
@@ -165,14 +166,11 @@
         </div>
         <div class="modal-body px-4 pb-4">
           <form id="resetPassword" method="post" action="<?= site_url('login/forgot_pass'); ?>" data-check-url="<?= site_url('login/check_reset_email'); ?>">
+            <input type="hidden" name="reset_mode" id="reset-mode" value="<?= $forgotManualMode ? 'manual' : 'email'; ?>">
             <div class="field-group">
               <label class="field-label" for="reset-email">Email address</label>
-              <small class="reset-hint">The system checks whether the email exists first, then verifies the username or student ID before opening the password fields.</small>
+              <small class="reset-hint">Enter your registered email to receive a temporary password you can use to sign in. If you prefer, you can open the manual password option below.</small>
               <input type="email" id="reset-email" name="email" class="field" placeholder="Enter Email" value="<?= html_escape($forgotEmail); ?>" required>
-            </div>
-            <div class="field-group">
-              <label class="field-label" for="reset-identifier">Username / Student ID</label>
-              <input type="text" id="reset-identifier" name="identifier" class="field" placeholder="Enter Username or Student ID" value="<?= html_escape($forgotIdentifier); ?>" required>
             </div>
             <div
               id="reset-status"
@@ -180,11 +178,18 @@
               <?= empty($forgotErrorText) && empty($forgotInfoText) ? 'hidden' : ''; ?>
             ><?= html_escape($forgotErrorText ?: $forgotInfoText); ?></div>
 
-            <div id="reset-password-fields" class="reset-password-fields" <?= $forgotAccountVerified ? '' : 'hidden'; ?>>
+            <div id="manual-reset-section" class="reset-password-fields" <?= $forgotManualMode ? '' : 'hidden'; ?>>
+              <div class="field-group" style="margin-top:14px">
+                <label class="field-label" for="reset-identifier">Username / Student ID</label>
+                <input type="text" id="reset-identifier" name="identifier" class="field" placeholder="Enter Username or Student ID" value="<?= html_escape($forgotIdentifier); ?>" <?= $forgotManualMode ? 'required' : ''; ?>>
+              </div>
+
+              <div id="reset-password-fields">
+              
               <div class="field-group" style="margin-top:14px">
                 <label class="field-label" for="reset-new-password">New password</label>
                 <div class="field-wrap">
-                  <input class="field" id="reset-new-password" name="new_password" type="password" minlength="8" autocomplete="new-password" placeholder="At least 8 characters" <?= $forgotAccountVerified ? 'required' : ''; ?> style="padding-right:42px">
+                  <input class="field" id="reset-new-password" name="new_password" type="password" minlength="8" autocomplete="new-password" placeholder="At least 8 characters" <?= $forgotManualMode ? 'required' : ''; ?> style="padding-right:42px">
                   <button class="toggle-pass" type="button" data-target="#reset-new-password" title="Toggle"><i class="fa fa-eye"></i></button>
                 </div>
               </div>
@@ -192,13 +197,16 @@
               <div class="field-group">
                 <label class="field-label" for="reset-confirm-password">Confirm password</label>
                 <div class="field-wrap">
-                  <input class="field" id="reset-confirm-password" name="confirm_password" type="password" minlength="8" autocomplete="new-password" placeholder="Repeat your new password" <?= $forgotAccountVerified ? 'required' : ''; ?> style="padding-right:42px">
+                  <input class="field" id="reset-confirm-password" name="confirm_password" type="password" minlength="8" autocomplete="new-password" placeholder="Repeat your new password" <?= $forgotManualMode ? 'required' : ''; ?> style="padding-right:42px">
                   <button class="toggle-pass" type="button" data-target="#reset-confirm-password" title="Toggle"><i class="fa fa-eye"></i></button>
                 </div>
               </div>
+              </div>
             </div>
 
-            <button class="btn-main" id="resetSubmit" type="submit" style="margin-top:12px" <?= $forgotAccountVerified ? '' : 'hidden disabled'; ?>><span>Update password</span></button>
+            <a href="#" class="reset-alt-link" id="toggleManualReset"><?= $forgotManualMode ? 'Send temporary password instead' : 'Set password manually instead'; ?></a>
+
+            <button class="btn-main" id="resetSubmit" type="submit" style="margin-top:12px" <?= ($forgotManualMode && !$forgotAccountVerified) ? 'disabled' : ''; ?>><span><?= $forgotManualMode ? 'Update password' : 'Send temporary password'; ?></span></button>
           </form>
         </div>
       </div>
@@ -219,6 +227,7 @@
       forgotEmail: <?= json_encode($forgotEmail ?? ''); ?>,
       forgotIdentifier: <?= json_encode($forgotIdentifier ?? ''); ?>,
       forgotAccountVerified: <?= $forgotAccountVerified ? 'true' : 'false'; ?>,
+      forgotManualMode: <?= $forgotManualMode ? 'true' : 'false'; ?>,
       checkResetEmailUrl: <?= json_encode(site_url('login/check_reset_email')); ?>
     };
   </script>

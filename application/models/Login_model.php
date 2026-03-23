@@ -184,6 +184,124 @@ class Login_model extends CI_Model
       ->update('o_users', ['password' => $passwordHash]);
   }
 
+  public function sendTemporaryPasswordForUser($username)
+  {
+    $username = trim((string)$username);
+
+    if ($username === '') {
+      return [
+        'ok' => false,
+        'message' => 'Unable to reset password right now. Please try again.'
+      ];
+    }
+
+    $user = $this->db
+      ->where('username', $username)
+      ->limit(1)
+      ->get('o_users')
+      ->row_array();
+
+    if (!$user || empty($user['email'])) {
+      return [
+        'ok' => false,
+        'message' => 'No account/email found for this user.'
+      ];
+    }
+
+    $oldPasswordHash = (string)($user['password'] ?? '');
+    $tempPassword = (string) random_int(10000000, 99999999);
+    $newPasswordHash = sha1($tempPassword);
+
+    $updated = $this->db
+      ->where('username', $user['username'])
+      ->update('o_users', ['password' => $newPasswordHash]);
+
+    if (!$updated) {
+      return [
+        'ok' => false,
+        'message' => 'Unable to reset password right now. Please try again.'
+      ];
+    }
+
+    $schoolSettings = $this->db->get('o_srms_settings')->row();
+    $schoolName = $schoolSettings ? $schoolSettings->SchoolName : 'School Records Management System';
+    $senderEmail = trim((string)$this->config->item('smtp_user'));
+    if ($senderEmail === '' || !filter_var($senderEmail, FILTER_VALIDATE_EMAIL)) {
+      $senderEmail = 'fbmso@softtechco.biz';
+    }
+
+    $this->load->config('email');
+    $this->load->library('email');
+    $this->email->clear(true);
+    $this->email->set_mailtype('html');
+    if (method_exists($this->email, 'set_newline')) {
+      $this->email->set_newline("\r\n");
+    }
+    if (method_exists($this->email, 'set_crlf')) {
+      $this->email->set_crlf("\r\n");
+    }
+
+    $loginUrl = rtrim((string) base_url('login'), '/');
+
+    $mailMessage = '
+      <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4; color: #333;">
+        <div style="max-width: 600px; margin: auto; background: white; border-radius: 5px; padding: 20px;">
+          <h2 style="color: #007bff;">Password Reset Notification</h2>
+          <p>Dear <strong>' . htmlspecialchars((string)$user['fName']) . '</strong>,</p>
+          <p>Your temporary password for <strong>' . htmlspecialchars($schoolName) . '</strong> is:</p>
+          <table style="width: 100%; max-width: 420px; margin: 20px 0; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 10px; background-color: #f0f0f0; border: 1px solid #ddd;"><strong>Username</strong></td>
+              <td style="padding: 10px; border: 1px solid #ddd;">' . htmlspecialchars((string)$user['username']) . '</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px; background-color: #f0f0f0; border: 1px solid #ddd;"><strong>Temporary Password</strong></td>
+              <td style="padding: 10px; border: 1px solid #ddd;">' . htmlspecialchars($tempPassword) . '</td>
+            </tr>
+          </table>
+          <p>Please use this password to log in, then change it immediately.</p>
+          <p><a href="' . htmlspecialchars($loginUrl) . '" style="display:inline-block;padding:10px 20px;background:#007bff;color:white;text-decoration:none;border-radius:4px;">Login Now</a></p>
+          <p style="margin-top: 30px;">Best regards,<br><strong>' . htmlspecialchars($schoolName) . '</strong></p>
+          <hr style="margin-top: 40px;">
+          <p style="font-size: 12px; color: #999;">This is an automated message. Please do not reply.</p>
+        </div>
+      </div>';
+
+    $this->email->from($senderEmail, $schoolName);
+    if (method_exists($this->email, 'reply_to')) {
+      $this->email->reply_to($senderEmail, $schoolName);
+    }
+    $this->email->to((string)$user['email']);
+    $this->email->subject('Temporary Password - ' . $schoolName);
+    $this->email->message($mailMessage);
+
+    $sent = $this->email->send(false);
+
+    if (!$sent) {
+      if ($oldPasswordHash !== '') {
+        $this->db
+          ->where('username', $user['username'])
+          ->update('o_users', ['password' => $oldPasswordHash]);
+      }
+
+      log_message(
+        'error',
+        'Forgot password temp email failed for ' . $user['username'] . ' <' . $user['email'] . '> using sender ' . $senderEmail . ': ' .
+          trim(strip_tags($this->email->print_debugger(['headers', 'subject'])))
+      );
+
+      return [
+        'ok' => false,
+        'message' => 'Unable to send the temporary password email. You can use the manual password option instead.'
+      ];
+    }
+
+    return [
+      'ok' => true,
+      'message' => 'A temporary password has been sent to your email. Use it to sign in.'
+    ];
+  }
+
   private $encryption_method = 'AES-256-CBC';
 
   private function get_key()
@@ -238,63 +356,21 @@ class Login_model extends CI_Model
   public function sendpassword($data)
   {
     $email = strtolower(trim((string)$data['email']));
-    $query1 = $this->db->query(
-      "
-        SELECT *
-        FROM o_users
-        WHERE LOWER(TRIM(email)) = ?
-        ORDER BY dateCreated DESC
-        LIMIT 1
-      ",
-      [$email]
-    );
-    $row = $query1->row_array();
+    $user = $this->findUserByEmail($email);
 
-    if ($query1 && $query1->num_rows() > 0) {
-      $tempPassword = rand(100000000, 9999999999);
-      $newpass = ['password' => sha1($tempPassword)];
-      $this->db->where('username', $row['username']);
-      $this->db->update('o_users', $newpass);
-
-      $schoolSettings = $this->db->get('o_srms_settings')->row();
-      $schoolName = $schoolSettings ? $schoolSettings->SchoolName : 'School Records Management System';
-
-      $this->load->config('email');
-      $this->load->library('email');
-      $this->email->set_mailtype("html");
-
-      $mail_message = '
-          <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4; color: #333;">
-              <div style="max-width: 600px; margin: auto; background: white; border-radius: 5px; padding: 20px;">
-                  <h2 style="color: #007bff;">Password Reset Notification</h2>
-                  <p>Dear <strong>' . htmlspecialchars($row['fName']) . '</strong>,</p>
-                  <p>Your temporary password for <strong>' . htmlspecialchars($schoolName) . '</strong> is:</p>
-                  <div style="background: #f8f9fa; padding: 10px 15px; font-size: 18px; border: 1px solid #ccc; margin: 20px 0; border-radius: 4px; text-align: center;">
-                      <strong>' . $tempPassword . '</strong>
-                  </div>
-                  <p>Please use this to log in and immediately change your password.</p>
-                  <p style="margin-top: 30px;">Best regards,<br><strong>' . htmlspecialchars($schoolName) . '</strong></p>
-                  <hr style="margin-top: 40px;">
-                  <p style="font-size: 12px; color: #999;">This is an automated message. Please do not reply.</p>
-              </div>
-          </div>';
-
-      $this->email->from('no-reply@srmsportal.com', $schoolName);
-      $this->email->to($email);
-      $this->email->subject('Temporary Password - ' . $schoolName);
-      $this->email->message($mail_message);
-      $sent = $this->email->send();
-
-      if ($sent) {
-        $this->session->set_flashdata('info_message', 'A temporary password has been sent to your email.');
-      } else {
-        $this->session->set_flashdata('auth_error', 'Password was reset, but email sending failed. Please contact support.');
-      }
-      redirect(base_url('login'), 'refresh');
-    } else {
+    if (!$user) {
       $this->session->set_flashdata('auth_error', 'Email not found!');
       redirect(base_url('login'), 'refresh');
+      return;
     }
+
+    $result = $this->sendTemporaryPasswordForUser((string)$user['username']);
+    if (!empty($result['ok'])) {
+      $this->session->set_flashdata('info_message', (string)$result['message']);
+    } else {
+      $this->session->set_flashdata('auth_error', (string)($result['message'] ?? 'Unable to send the temporary password email.'));
+    }
+    redirect(base_url('login'), 'refresh');
   }
 
   public function deleteUser($user)

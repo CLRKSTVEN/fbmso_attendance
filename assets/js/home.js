@@ -39,9 +39,11 @@
 
   if (!forgotInfo || !window.Swal) return;
 
+  var title = /temporary password/i.test(forgotInfo) ? 'Check your email' : 'Password Updated';
+
   Swal.fire({
     icon: 'success',
-    title: 'Password Updated',
+    title: title,
     text: forgotInfo,
     confirmButtonColor: '#3b5fd4'
   });
@@ -53,19 +55,23 @@
   if (!form) return;
 
   var emailInput = document.getElementById('reset-email');
+  var manualSection = document.getElementById('manual-reset-section');
   var identifierInput = document.getElementById('reset-identifier');
-  var passwordFields = document.getElementById('reset-password-fields');
+  var resetModeInput = document.getElementById('reset-mode');
+  var toggleManualLink = document.getElementById('toggleManualReset');
   var newPasswordInput = document.getElementById('reset-new-password');
   var confirmPasswordInput = document.getElementById('reset-confirm-password');
   var submitButton = document.getElementById('resetSubmit');
+  var submitLabel = submitButton ? submitButton.querySelector('span') : null;
   var statusBox = document.getElementById('reset-status');
-  var verified = !!state.forgotAccountVerified;
+  var manualMode = !!state.forgotManualMode;
+  var accountVerified = !!state.forgotAccountVerified && manualMode;
   var initialEmail = normalizeEmail(state.forgotEmail || (emailInput ? emailInput.value : ''));
   var initialIdentifier = normalizeIdentifier(state.forgotIdentifier || (identifierInput ? identifierInput.value : ''));
-  var lastVerifiedKey = verified ? buildIdentityKey(initialEmail, initialIdentifier) : '';
-  var lastEmailChecked = '';
-  var lastEmailExists = null;
-  var lastEmailActive = null;
+  var lastVerifiedKey = accountVerified ? buildIdentityKey(initialEmail, initialIdentifier) : '';
+  var lastEmailChecked = accountVerified ? initialEmail : '';
+  var lastEmailExists = accountVerified ? true : null;
+  var lastEmailActive = accountVerified ? true : null;
   var lastEmailMessage = '';
   var checkTimer = null;
   var activeRequest = null;
@@ -102,6 +108,18 @@
     return normalizeEmail(email) + '|' + normalizeIdentifier(identifier).toLowerCase();
   }
 
+  function getEmailReadyMessage() {
+    return 'Email exists. You can send a temporary password to this email now.';
+  }
+
+  function getManualReadyMessage() {
+    return 'Account verified. You can set a new password now.';
+  }
+
+  function isEmailReady(email) {
+    return lastEmailChecked === email && lastEmailExists === true && lastEmailActive === true;
+  }
+
   function setStatus(message, type) {
     if (!statusBox) return;
 
@@ -117,30 +135,66 @@
     statusBox.hidden = !message;
   }
 
-  function setPasswordFieldsVisible(show) {
-    verified = !!show;
-
-    if (passwordFields) {
-      passwordFields.hidden = !show;
+  function clearManualPasswords() {
+    if (identifierInput && !manualMode) {
+      identifierInput.value = '';
     }
 
     if (newPasswordInput) {
-      newPasswordInput.required = !!show;
-      if (!show) newPasswordInput.value = '';
+      newPasswordInput.value = '';
     }
 
     if (confirmPasswordInput) {
-      confirmPasswordInput.required = !!show;
-      if (!show) confirmPasswordInput.value = '';
-    }
-
-    if (submitButton) {
-      submitButton.hidden = !show;
-      submitButton.disabled = !show;
+      confirmPasswordInput.value = '';
     }
   }
 
-  function normalizeIdentityInputs() {
+  function syncResetModeUi() {
+    var currentEmail = normalizeEmail(emailInput ? emailInput.value : '');
+
+    if (resetModeInput) {
+      resetModeInput.value = manualMode ? 'manual' : 'email';
+    }
+
+    if (manualSection) {
+      manualSection.hidden = !manualMode;
+    }
+
+    if (identifierInput) {
+      identifierInput.required = !!manualMode;
+    }
+
+    if (newPasswordInput) {
+      newPasswordInput.required = !!manualMode;
+    }
+
+    if (confirmPasswordInput) {
+      confirmPasswordInput.required = !!manualMode;
+    }
+
+    if (submitLabel) {
+      submitLabel.textContent = manualMode ? 'Update password' : 'Send temporary password';
+    }
+
+    if (toggleManualLink) {
+      toggleManualLink.textContent = manualMode ? 'Send temporary password instead' : 'Set password manually instead';
+    }
+
+    if (submitButton) {
+      submitButton.hidden = false;
+      submitButton.disabled = manualMode ? !accountVerified : !isEmailReady(currentEmail);
+    }
+  }
+
+  function setAccountVerified(show) {
+    accountVerified = !!show;
+    if (!accountVerified) {
+      clearManualPasswords();
+    }
+    syncResetModeUi();
+  }
+
+  function normalizeInputs() {
     var email = normalizeEmail(emailInput ? emailInput.value : '');
     var identifier = normalizeIdentifier(identifierInput ? identifierInput.value : '');
 
@@ -172,12 +226,6 @@
     activeRequest = null;
   }
 
-  function resetVerificationState() {
-    if (verified) {
-      setPasswordFieldsVisible(false);
-    }
-  }
-
   function clearEmailCacheIfChanged(email) {
     if (email !== lastEmailChecked) {
       lastEmailChecked = '';
@@ -188,23 +236,13 @@
     }
   }
 
-  function performAccountCheck(identity, immediateFocusTarget) {
-    var email = identity.email;
-    var identifier = identity.identifier;
-    var identityKey = buildIdentityKey(email, identifier);
-
+  function performEmailCheck(email, immediateFocusTarget) {
     clearScheduledCheck();
-
-    if (!email && !identifier) {
-      abortActiveCheck();
-      resetVerificationState();
-      setStatus('', '');
-      return;
-    }
 
     if (!email) {
       abortActiveCheck();
-      resetVerificationState();
+      clearEmailCacheIfChanged('');
+      setAccountVerified(false);
       setStatus('', '');
       return;
     }
@@ -213,98 +251,155 @@
 
     if (!isValidEmail(email)) {
       abortActiveCheck();
-      resetVerificationState();
+      setAccountVerified(false);
+      setStatus('Please enter a valid email address.', 'error');
+      if (immediateFocusTarget && emailInput) emailInput.focus();
+      return;
+    }
+
+    if (isEmailReady(email)) {
+      setAccountVerified(false);
+      setStatus(manualMode ? 'Email exists. Enter your username or student ID.' : getEmailReadyMessage(), 'success');
+      return;
+    }
+
+    if (lastEmailChecked === email && lastEmailExists === false) {
+      setAccountVerified(false);
+      setStatus(lastEmailMessage || 'Email does not exist.', 'error');
+      return;
+    }
+
+    if (lastEmailChecked === email && lastEmailExists === true && lastEmailActive === false) {
+      setAccountVerified(false);
+      setStatus(lastEmailMessage || 'Email exists, but the account is not active. Please contact support.', 'error');
+      return;
+    }
+
+    if (!$ || typeof $.ajax !== 'function') {
+      setAccountVerified(false);
+      setStatus('Email check is unavailable right now. Please try again.', 'error');
+      return;
+    }
+
+    abortActiveCheck();
+    setAccountVerified(false);
+    setStatus('Checking email...', '');
+
+    activeRequest = $.ajax({
+      url: state.checkResetEmailUrl || form.getAttribute('data-check-url'),
+      method: 'POST',
+      dataType: 'json',
+      data: {
+        email: email,
+        mode: manualMode ? 'manual' : 'email'
+      }
+    }).done(function(response) {
+      lastEmailChecked = email;
+      lastEmailExists = !!(response && response.email_exists);
+      lastEmailActive = !!(response && response.account_active);
+      lastEmailMessage = (response && response.message) || '';
+
+      if (lastEmailExists && lastEmailActive) {
+        setStatus(manualMode ? 'Email exists. Enter your username or student ID.' : getEmailReadyMessage(), 'success');
+      } else {
+        setStatus(lastEmailMessage || 'Email does not exist.', 'error');
+      }
+    }).fail(function(xhr, textStatus) {
+      if (textStatus === 'abort') {
+        return;
+      }
+
+      lastEmailChecked = '';
+      lastEmailExists = null;
+      lastEmailActive = null;
+      lastEmailMessage = '';
+      setStatus('Unable to check email right now. Please try again.', 'error');
+    }).always(function() {
+      activeRequest = null;
+      syncResetModeUi();
+    });
+  }
+
+  function performManualCheck(identity, immediateFocusTarget) {
+    var email = identity.email;
+    var identifier = identity.identifier;
+    var identityKey = buildIdentityKey(email, identifier);
+
+    clearScheduledCheck();
+
+    if (!email) {
+      abortActiveCheck();
+      clearEmailCacheIfChanged('');
+      setAccountVerified(false);
+      setStatus('', '');
+      return;
+    }
+
+    clearEmailCacheIfChanged(email);
+
+    if (!isValidEmail(email)) {
+      abortActiveCheck();
+      setAccountVerified(false);
       setStatus('Please enter a valid email address.', 'error');
       if (immediateFocusTarget && emailInput) emailInput.focus();
       return;
     }
 
     if (!identifier) {
-      if (lastEmailChecked === email && lastEmailExists === true) {
-        setStatus(lastEmailMessage || 'Email exists. Enter your username or student ID.', lastEmailActive ? 'success' : 'error');
-        return;
+      if (isEmailReady(email)) {
+        setAccountVerified(false);
+        setStatus('Email exists. Enter your username or student ID.', 'success');
+      } else {
+        performEmailCheck(email, immediateFocusTarget);
       }
-
-      if (lastEmailChecked === email && lastEmailExists === false) {
-        setStatus(lastEmailMessage || 'Email does not exist.', 'error');
-        return;
-      }
-
-      if (!$ || typeof $.ajax !== 'function') {
-        setStatus('Email check is unavailable right now. Please try again.', 'error');
-        return;
-      }
-
-      abortActiveCheck();
-      resetVerificationState();
-      setStatus('Checking email...', '');
-
-      activeRequest = $.ajax({
-        url: state.checkResetEmailUrl || form.getAttribute('data-check-url'),
-        method: 'POST',
-        dataType: 'json',
-        data: { email: email }
-      }).done(function(response) {
-        lastEmailChecked = email;
-        lastEmailExists = !!(response && response.email_exists);
-        lastEmailActive = !!(response && response.account_active);
-        lastEmailMessage = (response && response.message) || (lastEmailExists ? 'Email exists. Enter your username or student ID.' : 'Email does not exist.');
-        setStatus(lastEmailMessage, (lastEmailExists && lastEmailActive) ? 'success' : 'error');
-      }).fail(function(xhr, textStatus) {
-        if (textStatus === 'abort') {
-          return;
-        }
-
-        lastEmailChecked = '';
-        lastEmailExists = null;
-        lastEmailActive = null;
-        lastEmailMessage = '';
-        setStatus('Unable to check email right now. Please try again.', 'error');
-      }).always(function() {
-        activeRequest = null;
-      });
       return;
     }
 
-    if (lastVerifiedKey && identityKey === lastVerifiedKey) {
-      setPasswordFieldsVisible(true);
-      setStatus('Account verified. You can set a new password now.', 'success');
+    if (accountVerified && lastVerifiedKey === identityKey) {
+      setStatus(getManualReadyMessage(), 'success');
+      syncResetModeUi();
       return;
     }
 
     if (!$ || typeof $.ajax !== 'function') {
-      resetVerificationState();
+      setAccountVerified(false);
       setStatus('Account check is unavailable right now. Please try again.', 'error');
       return;
     }
 
     abortActiveCheck();
-    resetVerificationState();
+    setAccountVerified(false);
     setStatus('Checking account...', '');
 
     activeRequest = $.ajax({
       url: state.checkResetEmailUrl || form.getAttribute('data-check-url'),
       method: 'POST',
       dataType: 'json',
-      data: { email: email, identifier: identifier }
+      data: {
+        email: email,
+        identifier: identifier,
+        mode: 'manual'
+      }
     }).done(function(response) {
       lastEmailChecked = email;
       lastEmailExists = !!(response && response.email_exists);
-       lastEmailActive = !!(response && response.account_active);
+      lastEmailActive = !!(response && response.account_active);
       lastEmailMessage = (response && response.message) || '';
 
       if (response && response.success) {
         initialEmail = email;
         initialIdentifier = identifier;
         lastVerifiedKey = identityKey;
-        setPasswordFieldsVisible(true);
-        setStatus(response.message || 'Account verified. You can set a new password now.', 'success');
-        if (immediateFocusTarget && newPasswordInput) newPasswordInput.focus();
+        setAccountVerified(true);
+        setStatus(getManualReadyMessage(), 'success');
+        if (immediateFocusTarget && newPasswordInput) {
+          newPasswordInput.focus();
+        }
         return;
       }
 
       lastVerifiedKey = '';
-      setPasswordFieldsVisible(false);
+      setAccountVerified(false);
       setStatus((response && response.message) || 'Email exists, but it does not match that username or student ID.', 'error');
       if (immediateFocusTarget) {
         if (identifierInput && identifier) {
@@ -319,41 +414,32 @@
       }
 
       lastVerifiedKey = '';
-      setPasswordFieldsVisible(false);
+      setAccountVerified(false);
       setStatus('Unable to check account right now. Please try again.', 'error');
     }).always(function() {
       activeRequest = null;
+      syncResetModeUi();
     });
   }
 
-  function scheduleAccountCheck() {
-    var identity = normalizeIdentityInputs();
-    var identityKey = buildIdentityKey(identity.email, identity.identifier);
+  function scheduleCheck() {
+    var identity = normalizeInputs();
 
     if (!identity.email && !identity.identifier) {
       clearScheduledCheck();
       abortActiveCheck();
-      resetVerificationState();
+      clearEmailCacheIfChanged('');
+      setAccountVerified(false);
       setStatus('', '');
       return;
     }
 
     clearEmailCacheIfChanged(identity.email);
 
-    if (identityKey !== lastVerifiedKey) {
-      resetVerificationState();
-    }
-
-    if (!identity.email && identity.identifier) {
-      clearScheduledCheck();
-      abortActiveCheck();
-      setStatus('Enter your registered email to continue.', 'error');
-      return;
-    }
-
     if (!identity.email) {
       clearScheduledCheck();
       abortActiveCheck();
+      setAccountVerified(false);
       setStatus('', '');
       return;
     }
@@ -361,30 +447,35 @@
     if (!isValidEmail(identity.email)) {
       clearScheduledCheck();
       abortActiveCheck();
+      setAccountVerified(false);
       setStatus('Please enter a valid email address.', 'error');
       return;
+    }
+
+    if (!manualMode) {
+      clearScheduledCheck();
+      checkTimer = setTimeout(function() {
+        performEmailCheck(identity.email, false);
+      }, 120);
+      return;
+    }
+
+    if (buildIdentityKey(identity.email, identity.identifier) !== lastVerifiedKey) {
+      setAccountVerified(false);
     }
 
     if (!identity.identifier) {
       clearScheduledCheck();
       abortActiveCheck();
-      if (lastEmailChecked === identity.email && lastEmailExists === true) {
-        setStatus(lastEmailMessage || 'Email exists. Enter your username or student ID.', lastEmailActive ? 'success' : 'error');
-      } else if (lastEmailChecked === identity.email && lastEmailExists === false) {
-        setStatus(lastEmailMessage || 'Email does not exist.', 'error');
-      } else {
-        setStatus('Checking email...', '');
-      }
-
       checkTimer = setTimeout(function() {
-        performAccountCheck(identity, false);
+        performEmailCheck(identity.email, false);
       }, 160);
       return;
     }
 
     clearScheduledCheck();
     checkTimer = setTimeout(function() {
-      performAccountCheck(identity, false);
+      performManualCheck(identity, false);
     }, 180);
   }
 
@@ -396,7 +487,8 @@
     identifierInput.value = initialIdentifier;
   }
 
-  setPasswordFieldsVisible(verified);
+  syncResetModeUi();
+  setAccountVerified(accountVerified);
 
   if (state.forgotError) {
     setStatus(state.forgotError, 'error');
@@ -409,33 +501,85 @@
   [emailInput, identifierInput].forEach(function(input) {
     if (!input) return;
 
-    input.addEventListener('input', scheduleAccountCheck);
-    input.addEventListener('keyup', scheduleAccountCheck);
-    input.addEventListener('change', scheduleAccountCheck);
+    input.addEventListener('input', scheduleCheck);
+    input.addEventListener('keyup', scheduleCheck);
+    input.addEventListener('change', scheduleCheck);
     input.addEventListener('paste', function() {
-      setTimeout(scheduleAccountCheck, 0);
+      setTimeout(scheduleCheck, 0);
     });
     input.addEventListener('blur', function() {
-      performAccountCheck(normalizeIdentityInputs(), false);
+      if (manualMode) {
+        performManualCheck(normalizeInputs(), false);
+      } else {
+        performEmailCheck(normalizeEmail(emailInput ? emailInput.value : ''), false);
+      }
     });
   });
 
-  if (window.jQuery) {
-    window.jQuery('#forgotModal').on('shown.bs.modal', function() {
-      setTimeout(scheduleAccountCheck, 50);
-      setTimeout(scheduleAccountCheck, 250);
+  if (toggleManualLink) {
+    toggleManualLink.addEventListener('click', function(event) {
+      event.preventDefault();
+      manualMode = !manualMode;
+
+      if (!manualMode) {
+        clearManualPasswords();
+        lastVerifiedKey = '';
+        accountVerified = false;
+      }
+
+      syncResetModeUi();
+
+      if (manualMode) {
+        if (accountVerified) {
+          setStatus(getManualReadyMessage(), 'success');
+          newPasswordInput.focus();
+        } else if (isEmailReady(normalizeEmail(emailInput ? emailInput.value : ''))) {
+          setStatus('Email exists. Enter your username or student ID.', 'success');
+        } else {
+          scheduleCheck();
+        }
+      } else if (isEmailReady(normalizeEmail(emailInput ? emailInput.value : ''))) {
+        setStatus(getEmailReadyMessage(), 'success');
+      } else {
+        scheduleCheck();
+      }
     });
   }
 
-  setTimeout(scheduleAccountCheck, 50);
-  setTimeout(scheduleAccountCheck, 250);
+  if (window.jQuery) {
+    window.jQuery('#forgotModal').on('shown.bs.modal', function() {
+      setTimeout(scheduleCheck, 50);
+      setTimeout(scheduleCheck, 250);
+    });
+  }
+
+  setTimeout(scheduleCheck, 50);
+  setTimeout(scheduleCheck, 250);
 
   form.addEventListener('submit', function(event) {
-    var identity = normalizeIdentityInputs();
+    var identity = normalizeInputs();
 
-    if (!verified) {
+    if (!manualMode) {
+      if (!isEmailReady(identity.email)) {
+        event.preventDefault();
+        performEmailCheck(identity.email, true);
+
+        if (!identity.email) {
+          setStatus('Please enter your registered email.', 'error');
+          if (emailInput) emailInput.focus();
+        } else if (!isValidEmail(identity.email)) {
+          setStatus('Please enter a valid email address.', 'error');
+          if (emailInput) emailInput.focus();
+        }
+
+        return;
+      }
+      return;
+    }
+
+    if (!accountVerified) {
       event.preventDefault();
-      performAccountCheck(identity, true);
+      performManualCheck(identity, true);
 
       if (!identity.email) {
         setStatus('Please enter your registered email.', 'error');
