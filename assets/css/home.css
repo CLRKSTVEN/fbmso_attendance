@@ -601,6 +601,41 @@
       font-size: 1rem !important;
     }
 
+    .reset-hint {
+      display: block;
+      margin-bottom: 10px;
+      font-size: .74rem;
+      color: #8fa0c8;
+    }
+
+    .reset-status {
+      margin: 2px 0 14px;
+      padding: 11px 14px;
+      border-radius: 14px;
+      border: 1px solid #d8e2ff;
+      background: #f6f9ff;
+      color: #3154c8;
+      font-size: .77rem;
+      font-weight: 600;
+      line-height: 1.45;
+    }
+
+    .reset-status.is-error {
+      border-color: #ffd4d4;
+      background: #fff4f4;
+      color: #c0392b;
+    }
+
+    .reset-status.is-success {
+      border-color: #d2eedc;
+      background: #f2fbf6;
+      color: #1f8f53;
+    }
+
+    .reset-password-fields {
+      margin-top: 14px;
+    }
+
     html,
     body {
       height: auto;

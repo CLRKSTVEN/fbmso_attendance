@@ -4879,7 +4879,19 @@ class Page extends CI_Controller
 		// Send email (your existing email content)
 		$this->load->config('email');
 		$this->load->library('email');
+		$senderEmail = trim((string)$this->config->item('smtp_user'));
+		if ($senderEmail === '' || !filter_var($senderEmail, FILTER_VALIDATE_EMAIL)) {
+			$senderEmail = 'fbmso@softtechco.biz';
+		}
+
 		$this->email->set_mailtype("html");
+		if (method_exists($this->email, 'set_newline')) {
+			$this->email->set_newline("\r\n");
+		}
+		if (method_exists($this->email, 'set_crlf')) {
+			$this->email->set_crlf("\r\n");
+		}
+		$this->email->clear(true);
 
 		$mail_message = '
 <div style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;">
@@ -4901,11 +4913,22 @@ class Page extends CI_Controller
   </div>
 </div>';
 
-		$this->email->from('no-reply@srmsportal.com', $schoolName);
+		$this->email->from($senderEmail, $schoolName);
+		if (method_exists($this->email, 'reply_to')) {
+			$this->email->reply_to($senderEmail, $schoolName);
+		}
 		$this->email->to($user->email);
 		$this->email->subject('Your Password Has Been Reset');
 		$this->email->message($mail_message);
-		$sent = @$this->email->send();
+		$sent = $this->email->send(false);
+
+		if (!$sent) {
+			log_message(
+				'error',
+				'ProfileList password reset email failed for ' . $targetUsername . ' <' . $user->email . '> using sender ' . $senderEmail . ': ' .
+					trim(strip_tags($this->email->print_debugger(['headers', 'subject'])))
+			);
+		}
 
 		if (!$ok) {
 			$this->session->set_flashdata('danger', 'Password reset failed. Please try again.');
@@ -4913,7 +4936,7 @@ class Page extends CI_Controller
 		}
 
 		if ($sent) {
-			$this->session->set_flashdata('success', "Password reset for {$targetUsername}. Temporary password was sent to {$user->email}.");
+			$this->session->set_flashdata('success', "Password reset for {$targetUsername}. The password email was submitted to {$user->email}.");
 		} else {
 			$this->session->set_flashdata('danger', "Password reset for {$targetUsername}, but email sending failed. Check mail settings/logs.");
 		}

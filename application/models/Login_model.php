@@ -71,13 +71,117 @@ class Login_model extends CI_Model
     );
   }
 
+  public function findUserByEmail($email)
+  {
+    $email = strtolower(trim((string)$email));
+
+    if ($email === '') {
+      return null;
+    }
+
+    $query = $this->db->query(
+      "
+        SELECT username, IDNumber, email, fName, mName, lName, acctStat
+        FROM o_users
+        WHERE email = ?
+        ORDER BY dateCreated DESC
+        LIMIT 1
+      ",
+      [$email]
+    );
+
+    if ($query->num_rows() > 0) {
+      return $query->row_array();
+    }
+
+    $query = $this->db->query(
+      "
+        SELECT username, IDNumber, email, fName, mName, lName, acctStat
+        FROM o_users
+        WHERE LOWER(TRIM(email)) = ?
+        ORDER BY dateCreated DESC
+        LIMIT 1
+      ",
+      [$email]
+    );
+
+    return $query->row_array();
+  }
+
+  public function findUserForReset($email, $identifier)
+  {
+    $email = strtolower(trim((string)$email));
+    $identifier = trim((string)$identifier);
+    $normalizedIdentifier = strtolower(preg_replace('/[\s-]+/', '', $identifier));
+
+    if ($email === '' || $identifier === '') {
+      return null;
+    }
+
+    $query = $this->db->query(
+      "
+        SELECT username, IDNumber, email, fName, mName, lName, acctStat
+        FROM o_users
+        WHERE email = ?
+          AND (
+            username = ?
+            OR IDNumber = ?
+            OR REPLACE(REPLACE(username, '-', ''), ' ', '') = ?
+            OR REPLACE(REPLACE(IDNumber, '-', ''), ' ', '') = ?
+          )
+        ORDER BY
+          CASE WHEN username = ? THEN 0 ELSE 1 END,
+          CASE WHEN IDNumber = ? THEN 0 ELSE 1 END,
+          dateCreated DESC
+        LIMIT 1
+      ",
+      [$email, $identifier, $identifier, $normalizedIdentifier, $normalizedIdentifier, $identifier, $identifier]
+    );
+
+    if ($query->num_rows() > 0) {
+      return $query->row_array();
+    }
+
+    $query = $this->db->query(
+      "
+        SELECT username, IDNumber, email, fName, mName, lName, acctStat
+        FROM o_users
+        WHERE LOWER(TRIM(email)) = ?
+          AND (
+            LOWER(TRIM(username)) = LOWER(TRIM(?))
+            OR LOWER(TRIM(IDNumber)) = LOWER(TRIM(?))
+            OR LOWER(REPLACE(REPLACE(TRIM(username), '-', ''), ' ', '')) = ?
+            OR LOWER(REPLACE(REPLACE(TRIM(IDNumber), '-', ''), ' ', '')) = ?
+          )
+        ORDER BY
+          CASE WHEN LOWER(TRIM(username)) = LOWER(TRIM(?)) THEN 0 ELSE 1 END,
+          CASE WHEN LOWER(TRIM(IDNumber)) = LOWER(TRIM(?)) THEN 0 ELSE 1 END,
+          dateCreated DESC
+        LIMIT 1
+      ",
+      [$email, $identifier, $identifier, $normalizedIdentifier, $normalizedIdentifier, $identifier, $identifier]
+    );
+
+    return $query->row_array();
+  }
+
   public function forgotPassword($email)
   {
-    $this->db->select('email');
-    $this->db->from('o_users');
-    $this->db->where('email', $email);
-    $query = $this->db->get();
-    return $query->row_array();
+    return $this->findUserByEmail($email);
+  }
+
+  public function updatePasswordByUsername($username, $passwordHash)
+  {
+    $username = trim((string)$username);
+    $passwordHash = trim((string)$passwordHash);
+
+    if ($username === '' || $passwordHash === '') {
+      return false;
+    }
+
+    return $this->db
+      ->where('username', $username)
+      ->update('o_users', ['password' => $passwordHash]);
   }
 
   private $encryption_method = 'AES-256-CBC';
@@ -133,14 +237,23 @@ class Login_model extends CI_Model
 
   public function sendpassword($data)
   {
-    $email = $data['email'];
-    $query1 = $this->db->query("SELECT * FROM o_users WHERE email = '" . $email . "'");
+    $email = strtolower(trim((string)$data['email']));
+    $query1 = $this->db->query(
+      "
+        SELECT *
+        FROM o_users
+        WHERE LOWER(TRIM(email)) = ?
+        ORDER BY dateCreated DESC
+        LIMIT 1
+      ",
+      [$email]
+    );
     $row = $query1->row_array();
 
     if ($query1 && $query1->num_rows() > 0) {
       $tempPassword = rand(100000000, 9999999999);
       $newpass = ['password' => sha1($tempPassword)];
-      $this->db->where('email', $email);
+      $this->db->where('username', $row['username']);
       $this->db->update('o_users', $newpass);
 
       $schoolSettings = $this->db->get('o_srms_settings')->row();

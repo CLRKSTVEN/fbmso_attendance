@@ -109,6 +109,14 @@
       $authError      = $this->session->flashdata('auth_error');
       $loginErrorText = is_string($authError) ? trim(strip_tags($authError)) : '';
       $infoMessage    = $this->session->flashdata('info_message') ?: '';
+      $forgotError    = $this->session->flashdata('forgot_error');
+      $forgotInfo     = $this->session->flashdata('forgot_info');
+      $forgotErrorText = is_string($forgotError) ? trim(strip_tags($forgotError)) : '';
+      $forgotInfoText  = is_string($forgotInfo) ? trim(strip_tags($forgotInfo)) : '';
+      $forgotModalOpen = (bool)$this->session->flashdata('forgot_modal_open');
+      $forgotEmail = (string)($this->session->flashdata('forgot_email') ?: '');
+      $forgotIdentifier = (string)($this->session->flashdata('forgot_identifier') ?: '');
+      $forgotAccountVerified = (bool)$this->session->flashdata('forgot_account_verified');
       ?>
       <?php if (!empty($loginErrorText)): ?>
         <div class="flash" id="login-error-message"><?= htmlspecialchars($loginErrorText, ENT_QUOTES, 'UTF-8'); ?></div>
@@ -130,7 +138,7 @@
           <label class="field-label" for="password">Password</label>
           <div class="field-wrap">
             <input class="field" id="password" name="password" type="password" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="••••••••" required style="padding-right:42px">
-            <button class="toggle-pass" type="button" id="togglePass" title="Toggle"><i class="fa fa-eye"></i></button>
+            <button class="toggle-pass" type="button" id="togglePass" data-target="#password" title="Toggle"><i class="fa fa-eye"></i></button>
           </div>
         </div>
 
@@ -156,13 +164,41 @@
           <button type="button" class="close" data-dismiss="modal" aria-label="Close" style="color:#8fa0c8"><span>&times;</span></button>
         </div>
         <div class="modal-body px-4 pb-4">
-          <form id="resetPassword" method="post" action="<?= base_url(); ?>login/forgot_pass">
+          <form id="resetPassword" method="post" action="<?= site_url('login/forgot_pass'); ?>" data-check-url="<?= site_url('login/check_reset_email'); ?>">
             <div class="field-group">
               <label class="field-label" for="reset-email">Email address</label>
-              <small>For security, we only send to registered emails</small>
-              <input type="email" id="reset-email" name="email" class="field" placeholder="Enter Email" required>
+              <small class="reset-hint">The system checks whether the email exists first, then verifies the username or student ID before opening the password fields.</small>
+              <input type="email" id="reset-email" name="email" class="field" placeholder="Enter Email" value="<?= html_escape($forgotEmail); ?>" required>
             </div>
-            <button class="btn-main" type="submit" style="margin-top:12px"><span>Send temporary password</span></button>
+            <div class="field-group">
+              <label class="field-label" for="reset-identifier">Username / Student ID</label>
+              <input type="text" id="reset-identifier" name="identifier" class="field" placeholder="Enter Username or Student ID" value="<?= html_escape($forgotIdentifier); ?>" required>
+            </div>
+            <div
+              id="reset-status"
+              class="reset-status<?= !empty($forgotErrorText) ? ' is-error' : (!empty($forgotInfoText) ? ' is-success' : ''); ?>"
+              <?= empty($forgotErrorText) && empty($forgotInfoText) ? 'hidden' : ''; ?>
+            ><?= html_escape($forgotErrorText ?: $forgotInfoText); ?></div>
+
+            <div id="reset-password-fields" class="reset-password-fields" <?= $forgotAccountVerified ? '' : 'hidden'; ?>>
+              <div class="field-group" style="margin-top:14px">
+                <label class="field-label" for="reset-new-password">New password</label>
+                <div class="field-wrap">
+                  <input class="field" id="reset-new-password" name="new_password" type="password" minlength="8" autocomplete="new-password" placeholder="At least 8 characters" <?= $forgotAccountVerified ? 'required' : ''; ?> style="padding-right:42px">
+                  <button class="toggle-pass" type="button" data-target="#reset-new-password" title="Toggle"><i class="fa fa-eye"></i></button>
+                </div>
+              </div>
+
+              <div class="field-group">
+                <label class="field-label" for="reset-confirm-password">Confirm password</label>
+                <div class="field-wrap">
+                  <input class="field" id="reset-confirm-password" name="confirm_password" type="password" minlength="8" autocomplete="new-password" placeholder="Repeat your new password" <?= $forgotAccountVerified ? 'required' : ''; ?> style="padding-right:42px">
+                  <button class="toggle-pass" type="button" data-target="#reset-confirm-password" title="Toggle"><i class="fa fa-eye"></i></button>
+                </div>
+              </div>
+            </div>
+
+            <button class="btn-main" id="resetSubmit" type="submit" style="margin-top:12px" <?= $forgotAccountVerified ? '' : 'hidden disabled'; ?>><span>Update password</span></button>
           </form>
         </div>
       </div>
@@ -176,7 +212,14 @@
   <script>
     window.homeLoginState = {
       loginError: <?= json_encode($loginErrorText ?? ''); ?>,
-      infoMessage: <?= json_encode($infoMessage ?? ''); ?>
+      infoMessage: <?= json_encode($infoMessage ?? ''); ?>,
+      forgotError: <?= json_encode($forgotErrorText ?? ''); ?>,
+      forgotInfo: <?= json_encode($forgotInfoText ?? ''); ?>,
+      forgotModalOpen: <?= $forgotModalOpen ? 'true' : 'false'; ?>,
+      forgotEmail: <?= json_encode($forgotEmail ?? ''); ?>,
+      forgotIdentifier: <?= json_encode($forgotIdentifier ?? ''); ?>,
+      forgotAccountVerified: <?= $forgotAccountVerified ? 'true' : 'false'; ?>,
+      checkResetEmailUrl: <?= json_encode(site_url('login/check_reset_email')); ?>
     };
   </script>
   <script src="<?= base_url(); ?>assets/js/home.js"></script>
